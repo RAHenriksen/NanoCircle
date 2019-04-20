@@ -233,7 +233,7 @@ def Complex(bamfile,mapQ,reg, start, end):
 
     #extract the reads from the single coordinate dictionary
     Read_list = complex_reads(bamfile,mapQ,reg, start, end,reads_IDs)
-    for read in Read_list[:1]:
+    for read in Read_list:
         #coord1 = Sing_dict[read.query_name]
         #print("coo",coord1)
         #print("name",read.query_name)
@@ -300,7 +300,7 @@ print("complex circles")
 #actual complex regions
 
 
-print(Complex(bamfile,60,"chr1", 14682287, 14687166))
+#print(Complex(bamfile,60,"chr1", 14682287, 14687166))
 #print(Complex(bamfile,60,"chr1", 106597836, 106598346))
 
 #print(Complex(bamfile,60,"chr1", 16626700, 16627600))
