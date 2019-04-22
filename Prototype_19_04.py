@@ -318,6 +318,7 @@ print(Complex(bamfile,60,"chr7", 75713114, 75717415))
 print("---------")
 """
 
+"""
 coord=[82083498, 82085394, 24648701, 24650212, 24650308, 24651024, 82083498, 82086411, 24649837, 24651075, 82083498, 82086770, 24648862, 24651372, 24650143, 24651111, 82083710, 82084835, 82083760, 82085941, 82083769, 82086089, 82084010, 82087080, 46846937, 46847687, 53577491, 53578063, 82083498, 82086991, 24650457, 24651098, 82083787, 82085248, 24650826, 24651111, 82084355, 82085814, 82085262, 82087080, 53577491, 53578059, 46846937, 46847403, 82083795, 82086672, 82086008, 82086723, 82085836, 82087080, 46846960, 46847710, 53577493, 53578029, 53577491, 53577997, 46846937, 46847110]
 chr=['chr2', 'chr2', 'chr5', 'chr5', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr5', 'chr5', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr16', 'chr16', 'chr2', 'chr2']
 
@@ -345,6 +346,8 @@ for i in range(len(Grouped_coord)):
         d["test"].extend([Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])])
 
 print(d)
+"""
+
 bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
 #print(Complex(bamfile,60,"chr2", 82083496, 82087081))
 
@@ -384,7 +387,7 @@ def panda_test(dict):
         print(complex_df)
 
 #a = Complex(bamfile,60,"chr2", 82083496, 82087081)
-panda_test(d)
+#panda_test(d)
 
 """
 def File_identification(file_name,mapQ):
@@ -432,7 +435,7 @@ bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 File_identification("BC05.ge_mean5.bdg",True,60)
 print("----------------")
 Genome_Cov_identification(bamfile,"BC05.aln_hg19.bam",500,True)
-
+"""
 def Count_reads(bamfile,reg,start,end):
     "Count the number of Soft-clipped reads with a supplementary alignment"
     s_count = 0
@@ -450,11 +453,32 @@ def Count_reads(bamfile,reg,start,end):
             if not read.has_tag("SA"):
                 NO_SA_count +=1
     print("total number of reads in the file",bamfile.count(reg,start,end,read_callback='nofilter'))
-    print("total number of soft-clipped",s_count)ss
+    print("total number of soft-clipped",s_count)
     print("Number of soft-clipped reads with SA",SA_count)
     print("Number of soft-clipped reads wo. SA",NO_SA_count)
     print("supp",supp_count)
 
 Count_reads(bamfile,None,None,None)
 
-"""
+def Read_length(bamfile,reg,start,end,filename,read_type):
+    read_list = []
+    for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
+        if read_type == "Soft":
+            if read.cigar[0][0] == 4:
+                read_list.append(read.query_length)
+        elif read_type == "SA":
+            if read.cigar[0][0] == 4 and read.has_tag("SA"):
+                Tag = read.get_tag("SA").split(';')[:-1]
+                for Tagelem in Tag:
+                    Column_list = Tagelem.split(',')
+                    read_list.append(CIGAR_len(Column_list[3]))
+        elif read_type == "supp":
+            if read.is_supplementary == True:
+                read_list.append(read.query_length)
+    with open(filename, 'w') as f:
+        for item in read_list:
+            f.write("%s\n" % item)
+
+Read_length(bamfile,None,None,None,"Soft.txt","Soft")
+Read_length(bamfile,None,None,None,"SA.txt","SA")
+Read_length(bamfile,None,None,None,"Supp.txt","supp")
