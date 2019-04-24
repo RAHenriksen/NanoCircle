@@ -3,6 +3,7 @@ import edlib as ed
 import pandas as pd
 import seaborn as sns
 import numpy as np
+import pybedtools as bt
 from Bio import SeqIO
 import re
 import os
@@ -15,7 +16,7 @@ from matplotlib.patches import Rectangle
 from collections import Counter
 import pybedtools
 import math
-#from pybedtools import BedTool
+
 
 def CIGAR_len(cigar_str):
     """Returns the actual length of the sequence based on the CIGAR int values"""
@@ -211,6 +212,7 @@ def chr_coord_sort(chrlist,coordlist):
     """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
     coord_idx = np.argsort(coordlist)
     Coord_sort = [coordlist[i] for i in coord_idx]
+    print("idx",coord_idx)
     chr_sort = [chrlist[i] for i in coord_idx]
     return Coord_sort,chr_sort
 
@@ -227,7 +229,7 @@ def Complex(bamfile,mapQ,reg, start, end):
         reads_IDs = list(Sing_dict.keys())
         Read_list = complex_reads(bamfile,mapQ,reg, start, end,reads_IDs)
 
-    for read in Read_list[:-1]:
+    for read in Read_list:
         if len(Sing_dict) == 1:
             coord1 = list(Sing_dict.values())[0][0]
             coord2 = list(Sing_dict.values())[0][-1]
@@ -246,7 +248,7 @@ def Complex(bamfile,mapQ,reg, start, end):
         chroms = []
         cigar_len = []
         for Tagelem in Tag:
-            #print("tagelem",Tagelem)
+            print("tagelem",Tagelem)
             #splitting the individual aligment info up
             Column_list = Tagelem.split(',')
             chrom = Column_list[0]
@@ -262,11 +264,13 @@ def Complex(bamfile,mapQ,reg, start, end):
 
             elif int(Column_list[4]) >= mapQ:
                 #creates a coordinate list
+                print("name",read.query_name)
                 Coord_list.append(pos_start)
                 Coord_list.append(pos_end)
                 #append chr twice to ensure same length as coord_list
                 chroms.append(chrom)
                 chroms.append(chrom)
+                #print("chomrs",chroms)
                 Total_chr.extend((chrom, chrom))
                 Total_coord.extend((pos_start, pos_end))
 
@@ -275,12 +279,14 @@ def Complex(bamfile,mapQ,reg, start, end):
             #print("GROUPED",Grouping(Coord_list, overlap))
             if Coord_list != []:
                 #sorts the chr and coordinates
+                print("chroms",chroms)
                 Coord_sort, chr_sort = chr_coord_sort(chroms, Coord_list)
 
                 # first entry with the input region
                 Complex_dict[read.query_name] = [reg, coord1, coord2]
 
                 if len(Coord_sort) == 2:
+                    print("lenght")
                     #one coordinate pair supporting another region
                     Complex_dict[read.query_name].extend(
                         [chr_sort[0], min(Coord_sort), max(Coord_sort)])
@@ -288,17 +294,25 @@ def Complex(bamfile,mapQ,reg, start, end):
                     Grouped_coord = Grouping(Coord_sort, overlap)
                     Group_size = [len(i) for i in Grouped_coord]
                     Grouped_chr = []
-                    j = [0]
+                    print("Grouped_coord",Grouped_coord)
+                    print("Size",Group_size)
+                    #j = [0]
+                    First = 0
+                    print("first",First)
                     for i in Group_size:
-                        First = j[-1]
+                        #First = j[-1]
                         Grouped_chr.append(chr_sort[First:First+i])
-                        #print("teststst", chr_sort[First:First+i])
-                        j.append(i)
+                        print("teststst", chr_sort[First:First+i])
+                        #j.append(i)
+                        First += i
+                    print("Grouped_chr",Grouped_chr)
                     for i in range(len(Grouped_coord)):
                         Complex_dict[read.query_name].extend(
                             [Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])])
-    print("TOTALT LISTE",Total_coord)
-    print("TOTAL CHR",Total_chr)
+        print("----------------------new_read-----------------------")
+    #print("TOTALT LISTE",Total_coord)
+    #print("TOTAL CHR",Total_chr)
+
     if Complex_dict == {}:
         print("The given input region is not forming a complex circle")
         return Single_coord(bamfile, mapQ, reg, start,end,1)
@@ -306,7 +320,7 @@ def Complex(bamfile,mapQ,reg, start, end):
         print("The given input region forms a complex circle")
         return Complex_dict
 
-bamfile = ps.AlignmentFile("BC04.aln_hg19.bam","rb")
+#bamfile = ps.AlignmentFile("BC04.aln_hg19.bam","rb")
 #File_identification("BC05.ge_mean5.bdg",60)
 
 
@@ -346,10 +360,16 @@ for i in range(len(Grouped_coord)):
         d["test"].extend([Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])])
 
 print(d)
+complex_df = pd.DataFrame.from_dict(d, orient='index')
+print(complex_df)
+bedtest = bt.BedTool.from_dataframe(complex_df)
+print("bed",bedtest)
+bedtest.saveas("test.bed")
 """
-
-bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
+bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
+print(Complex(bamfile,60,"chr7", 75713114, 75717415))
 #print(Complex(bamfile,60,"chr2", 82083496, 82087081))
+#print(Complex(bamfile,60,"chr2", 46846937, 46847710))
 
 """
 a = Complex(bamfile,60,"chr2", 82083496, 82087081)
@@ -372,7 +392,7 @@ print(b)
 
 """
 
-def panda_test(dict):
+def panda_test(dict,savename):
     #finds the longest value and the corresponding key
     max_key, max_value = max(dict.items(), key = lambda x: len(set(x[1])))
     df_col = ["Chr","Start","End"]
@@ -383,11 +403,14 @@ def panda_test(dict):
     print(complex_df.shape)
     complex_df = complex_df.sort_values(by=All_Col)
     print("min",complex_df.min(axis=0))
+    bedtest = bt.BedTool.from_dataframe(complex_df)
+    bedtest.saveas(savename)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
         print(complex_df)
 
-#a = Complex(bamfile,60,"chr2", 82083496, 82087081)
-#panda_test(d)
+
+#c = Complex(bamfile,60,"chr2", 46846937, 46847710)
+#panda_test(c,"complex.bed")
 
 """
 def File_identification(file_name,mapQ):
@@ -435,7 +458,7 @@ bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 File_identification("BC05.ge_mean5.bdg",True,60)
 print("----------------")
 Genome_Cov_identification(bamfile,"BC05.aln_hg19.bam",500,True)
-"""
+
 def Count_reads(bamfile,reg,start,end):
     "Count the number of Soft-clipped reads with a supplementary alignment"
     s_count = 0
@@ -482,3 +505,7 @@ def Read_length(bamfile,reg,start,end,filename,read_type):
 Read_length(bamfile,None,None,None,"Soft.txt","Soft")
 Read_length(bamfile,None,None,None,"SA.txt","SA")
 Read_length(bamfile,None,None,None,"Supp.txt","supp")
+
+#x = pybedtools.BedTool.from_dataframe(df)
+#y = x.to_dataframe()
+"""
