@@ -444,9 +444,9 @@ def BED_file_creation(file_name,mapQ):
             else:
                 continue
     Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
-    Simple_bed.saveas("Simple_circles.bed")
+    Simple_bed.saveas("Simple_circles_27.bed")
     Complex_bed = bt.BedTool.from_dataframe(Complex_circ)
-    Complex_bed.saveas("Complex_circles.bed")
+    Complex_bed.saveas("Complex_circles_27.bed")
     #Simple_read_bed = bt.BedTool.from_dataframe(Simple_read)
     #Simple_read_bed.saveas("Simple_circ_read.bed")
 
@@ -478,7 +478,7 @@ def File_identification(file_name,mapQ):
 
 bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 File_identification("BC05.ge_mean5.bdg",60)
-
+BED_file_creation("BC05.ge_mean5.bdg",60)
 
 """
 bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
