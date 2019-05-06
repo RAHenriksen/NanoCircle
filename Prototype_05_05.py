@@ -159,42 +159,31 @@ def reduce_coords(bamfile,mapQ,reg,start,end):
         reduce_dic[k] = v
     return reduce_dic
 
-def Single_coord(bamfile,mapQ,reg,start,end,coord_val):
+def Single_coord(bamfile,mapQ,reg,start,end):
     """ returns merged coordinates for circles w. several reads having exact same coordinates. If not
     a dictionary with all reads and potential coordinates are returned"""
     Circle_dict = reduce_coords(bamfile, mapQ, reg, start, end)
     # intermediate dict, but keys should be values of orig dict
     Inter_dict = defaultdict(list)
-
     #If the number of values are larger than the unique set of values
     if len(Circle_dict.values()) > len(set(tuple(row) for row in Circle_dict.values())):
-
         #so here the values are the keys
         for k,v in sorted(Circle_dict.items()):
             Inter_dict[tuple(v)].append(k)
+
         final_dict = {tuple(v): list(k) for k, v in Inter_dict.items() if len(v) > 1}
         max_key, max_value = max(final_dict.items(), key=lambda x: len(set(x[1])))
-        print("MMAX KEY NUMBER",max_key)
-        print("test",final_dict[max_key])
-        print("test2",max_value)
-        print(dict([(max_key,max_value)]))
-        if coord_val == 0:
-            return final_dict
-        elif coord_val == 1:
-            #print("coordinates", final_dict[list(final_dict)[0]],
-            #      "supported by %s soft clipped reads" % len(list(final_dict)[0]))
-            #return  final_dict[list(final_dict)[0]]
-            return dict([(list(final_dict)[0],final_dict[list(final_dict)[0]])])
+        chr = [reg]
+        print("REDUCTERET")
+        #new_val =chr + max_value
+        new_val =  chr + max_value
+        return dict([(max_key,new_val)])
+
     else:
-        print("lollll")
+        print("CIRCLE DICT FIRST")
+        print("lenght",len(Circle_dict))
+        print(Circle_dict.values())
         return Circle_dict
-
-
-bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
-#print(Complex(bamfile,60,"chr1", 16626700, 16627600))
-test = Single_coord(bamfile,60,"chr1", 243928620, 243938331,1)
-print(test)
-#chr1    243928620       243938331       236.1817527
 
 def complex_reads(bamfile,mapQ,reg, start, end,reads_IDs):
     """ extract those reads which is found using the single coordinate dictionary"""
@@ -204,6 +193,21 @@ def complex_reads(bamfile,mapQ,reg, start, end,reads_IDs):
             if IS_SA(read, mapQ) == True:
                 Read_list.append(read)
     return Read_list
+
+def chr_coord_sort(chrlist,coordlist):
+    """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
+    coord_idx = np.argsort(coordlist)
+    Coord_sort = [coordlist[i] for i in coord_idx]
+    chr_sort = [chrlist[i] for i in coord_idx]
+    return Coord_sort,chr_sort
+
+def Grouping_chr(Chr_sort,Group_size):
+    Grouped_chr = []
+    Step = 0
+    for i in Group_size:
+        Grouped_chr.append(Chr_sort[Step:Step + i])
+        Step += i
+    return Grouped_chr
 
 def Grouping(Coord_list,overlap_bp):
     """ Groups a given list, for which elements within the overlap range is grouped together"""
@@ -221,38 +225,28 @@ def Grouping(Coord_list,overlap_bp):
             First.append([i])
     return First
 
-def chr_coord_sort(chrlist,coordlist):
-    """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
-    coord_idx = np.argsort(coordlist)
-    Coord_sort = [coordlist[i] for i in coord_idx]
-    print("idx",coord_idx)
-    chr_sort = [chrlist[i] for i in coord_idx]
-    return Coord_sort,chr_sort
-
-
 def Complex(bamfile,mapQ,reg, start, end):
-    Sing_dict = Single_coord(bamfile, mapQ, reg, start, end,0)
+    Sing_dict = Single_coord(bamfile, mapQ, reg, start, end)
     Complex_dict = {}
     Total_coord = []
     Total_chr = []
-    print(Sing_dict)
+    Total_overlap = []
     if len(Sing_dict) == 1:
         reads_IDs = list(Sing_dict.keys())[0]
         Read_list = complex_reads(bamfile, mapQ, reg, start, end, reads_IDs)
-        print("READ_LIST",Read_list)
     else:
         reads_IDs = list(Sing_dict.keys())
         Read_list = complex_reads(bamfile,mapQ,reg, start, end,reads_IDs)
 
-
     for read in Read_list:
+        #print("Name",read.query_name)
         if len(Sing_dict) == 1:
-            coord1 = list(Sing_dict.values())[0][0]
+            coord1 = list(Sing_dict.values())[0][-2]
             coord2 = list(Sing_dict.values())[0][-1]
             Total_chr.extend((reg,reg))
             Total_coord.extend((coord1,coord2))
         else:
-            coord1 = Sing_dict[read.query_name][0]
+            coord1 = Sing_dict[read.query_name][-2]
             coord2 = Sing_dict[read.query_name][-1]
             Total_chr.extend((reg,reg))
             Total_coord.extend((coord1, coord2))
@@ -264,23 +258,27 @@ def Complex(bamfile,mapQ,reg, start, end):
         chroms = []
         cigar_len = []
         for Tagelem in Tag:
-            print("tagelem",Tagelem)
             #splitting the individual aligment info up
             Column_list = Tagelem.split(',')
             chrom = Column_list[0]
             length = CIGAR_len(Column_list[3])
+            #print("lenght",length)
             cigar_len.append(length)
             pos_start = int(Column_list[1]) - 1  #1-based
             pos_end = int(Column_list[1]) + length - 1
+            #print("pos",pos_start,pos_end)
             overlap = sum(cigar_len)
+            Total_overlap.append(overlap)
 
             # if the supp align is in between the circular input region then we already know the breakpoint from Sing_dict
             if chrom == reg and start - overlap <= pos_start <= end + overlap and start - overlap <= pos_end <= end + overlap:
                 continue
 
             elif int(Column_list[4]) >= mapQ:
+                #print("tagelem",Tagelem)
                 #creates a coordinate list
-                print("name",read.query_name)
+                #print("name",read.query_name)
+                #print("POS",pos_start,pos_end)
                 Coord_list.append(pos_start)
                 Coord_list.append(pos_end)
                 #append chr twice to ensure same length as coord_list
@@ -288,156 +286,147 @@ def Complex(bamfile,mapQ,reg, start, end):
                 chroms.append(chrom)
                 #print("chomrs",chroms)
                 Total_chr.extend((chrom, chrom))
+                #print("NEW POS",Coord_list)
                 Total_coord.extend((pos_start, pos_end))
 
-            #print("COORD",Coord_list)
-            #print("CHR",chroms)
-            #print("GROUPED",Grouping(Coord_list, overlap))
             if Coord_list != []:
                 #sorts the chr and coordinates
-                print("chroms",chroms)
                 Coord_sort, chr_sort = chr_coord_sort(chroms, Coord_list)
 
                 # first entry with the input region
                 Complex_dict[read.query_name] = [reg, coord1, coord2]
 
                 if len(Coord_sort) == 2:
-                    print("lenght")
                     #one coordinate pair supporting another region
                     Complex_dict[read.query_name].extend(
-                        [chr_sort[0], min(Coord_sort), max(Coord_sort)])
+                        [chr_sort[0], int(min(Coord_sort)), int(max(Coord_sort))])
                 else:
-                    Grouped_coord = Grouping(Coord_sort, overlap)
+                    Grouped_coord = Grouping(Coord_sort, max(Total_overlap)*2)
                     Group_size = [len(i) for i in Grouped_coord]
-                    Grouped_chr = []
-                    print("Grouped_coord",Grouped_coord)
-                    print("Size",Group_size)
-                    #j = [0]
-                    First = 0
-                    print("first",First)
-                    for i in Group_size:
-                        #First = j[-1]
-                        Grouped_chr.append(chr_sort[First:First+i])
-                        print("teststst", chr_sort[First:First+i])
-                        #j.append(i)
-                        First += i
-                    print("Grouped_chr",Grouped_chr)
+                    Grouped_chr = Grouping_chr(chr_sort,Group_size)
                     for i in range(len(Grouped_coord)):
                         Complex_dict[read.query_name].extend(
-                            [Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])])
-        print("----------------------new_read-----------------------")
-    print("TOTALT LISTE",Total_coord)
-    print("TOTAL CHR",Total_chr)
+                            [Grouped_chr[i][0], int(min(Grouped_coord[i])), int(max(Grouped_coord[i]))])
 
     if Complex_dict == {}:
-        print("The given input region is not forming a complex circle")
-        return Single_coord(bamfile, mapQ, reg, start,end,1)
+        if len(Sing_dict) >= 1:
+            print("The given input region is not forming a complex circle")
+            final_dict = {}
+            chr = [reg]
+            #1 set of coord
+            if len(list(Sing_dict.keys())) == 1:
+
+                Output_type = 1
+                print("SING_DICT OUT")
+                return Sing_dict, Output_type, None, None
+            #several sets of coord
+            elif len(list(Sing_dict.keys())) >= 2:
+                #simple circ with several coordinate sets
+                Coord_val = [v for k,v in Sing_dict.items()]
+                #print("values",Coord_val)
+                keys = [k for k,v in Sing_dict.items()]
+                interval = [val for sublist in Coord_val for val in sublist]
+                val = chr + [min(interval),max(interval)]
+                Output_type = 2
+                final_dict[tuple(keys)] = val
+                print("FINAL DICT")
+                return final_dict, Output_type, Coord_val, None
+        else:
+            #empty dict
+            print("The given input region is not forming a circle")
+            Output_type = 0
+            return Sing_dict, Output_type, None, None
     else:
+        #Sorting again to create the coordinate and chromosome list
+        #print("Total_coord",Total_coord)
+        Coord_sort, chr_sort = chr_coord_sort(Total_chr, Total_coord)
+        #print("Coord_sort",Coord_sort)
+        Grouped_coord = Grouping(Coord_sort, max(Total_overlap)*2)
+        Group_size = [len(i) for i in Grouped_coord]
+        Grouped_chr = Grouping_chr(chr_sort, Group_size)
         print("The given input region forms a complex circle")
-        return Complex_dict
+        Output_type = 3
+        return Complex_dict,Output_type,Grouped_coord,Grouped_chr
 
+def Complex_circ_BED(dict,coord_full,chr_full,Circ_no,savename):
+    d = {}
+    tot_len = 0
+    #print(coord_full)
+    for i in range(len(coord_full)):
+        #print("test",int(min(coord_full[i])), int(max(coord_full[i])))
+        if len(d) == 0:
+            d["test"] = [chr_full[i][0], int(min(coord_full[i])), int(max(coord_full[i])),
+                         int(max(coord_full[i])) - int(min(coord_full[i]))]
+            tot_len += (max(coord_full[i]) - min(coord_full[i]))
+        else:
+            #print(len(d))
+            #print("d",d)
+            #print("exteded")
+            #print("new",coord_full[i])
+            d["test"].extend([chr_full[i][0], int(min(coord_full[i])), int(max(coord_full[i])),
+                         int(max(coord_full[i])) - int(min(coord_full[i]))])
+            tot_len += (int(max(coord_full[i])) - int(min(coord_full[i])))
+    #print(tot_len)
+    df_col = ["Chr", "Start", "End", "Length"]
+    rep = len(coord_full)
+    first_col = 'Circle No.'
+    Coord_Col = [j + "_no._" + str(i) for i in range(1, rep + 1) for j in df_col]
 
-"""
-print(len(list(test.keys())[0]))
-for k,v in test.items():
-    print("k",k)
-    print("v",v)
+    complex_df = pd.DataFrame.from_dict(d, orient='index', columns=Coord_Col)
+    complex_df.insert(loc=0, column=first_col, value=Circ_no)
 
-df_col = ["Start","End"]
-simple_df = pd.DataFrame.from_dict(test, orient='index',columns = df_col)
+    #print(list(dict.keys()))
+    add_col = ['Total_len','Read_No', 'Read_IDs']
+    add_val = [int(tot_len),len(list(dict.keys())),[list(dict.keys())]]
 
-simple_df = simple_df.sort_values(by=df_col)
-print(simple_df)
-"""
+    for i in range(len(add_col)):
+        complex_df.insert(loc=len(complex_df.columns), column=add_col[i], value=add_val[i])
 
+    bedtest = bt.BedTool.from_dataframe(complex_df)
+    bedtest.saveas(savename)
+    #return complex_df
 
-""" 
-chr10   18577508        18579630        13.64481132
-chr10   37375321        37381579        41.09809264
-chr10   66435392        66437394        20.97920892
-chr10   126777139       126791124       10.4195464
-chr10   133993072       133993674       16.65946844
-chr11   18452021        18456198        16.27013423
-chr11   84539733        84541979        45.27070347
+####
+# OKAY PROBLEMET LIGGER I AT NOGLE AF DE KOMPLEKSE CIRKLER ER IKKE SINGLE_COORD, SÅ DER BLIVER RETURNERET CIRCLE_DICT
+# OG DERFOR IKKE TILFØJET KOORDINAT MED DET SAMME, DERFOR VED SLICING OPPE I KOMPLEKS SÅ BLIVER DE FORKERTE VÆRDIER TAGET UD
+####
 
-chr1    14682287        14687166        21.45105328
-chr1    16626766        16627585        25.63736264
-chr1    106597836       106598346       17.30784314
-chr1    114792782       114795930       7.672073791
-chr1    161001223       161012454       111.6549728
-chr1    174736312       174736815       80.06560636
-chr1    243928620       243938331       236.1817527
-"""
+def Simple_circ_BED(beddict,Circ_no,savename,Filename):
+    df_col = ["Chr","Start","End"]
+    simple_df = pd.DataFrame.from_dict(beddict, orient='index',columns = df_col)
+    simple_df = simple_df.sort_values(by=df_col)
+    simple_df['Length'] = simple_df.apply(lambda x: x['End'] - x['Start'], axis=1)
+    SampleID = Filename.split('.')[0]
+    #create first column
+    simple_df.insert(loc=0, column="Circle No.", value="%s_simple_circ_%d" % (SampleID,Circ_no))
 
-"""
-print(Complex(bamfile,60,"chr1", 16626700, 16627600))
-print(Complex(bamfile,60,"chr8", 51869000, 51869500))
-
-print(Complex(bamfile,60,"chr7", 75713114, 75717415))
-print("---------")
-"""
-
-"""
-coord=[82083498, 82085394, 24648701, 24650212, 24650308, 24651024, 82083498, 82086411, 24649837, 24651075, 82083498, 82086770, 24648862, 24651372, 24650143, 24651111, 82083710, 82084835, 82083760, 82085941, 82083769, 82086089, 82084010, 82087080, 46846937, 46847687, 53577491, 53578063, 82083498, 82086991, 24650457, 24651098, 82083787, 82085248, 24650826, 24651111, 82084355, 82085814, 82085262, 82087080, 53577491, 53578059, 46846937, 46847403, 82083795, 82086672, 82086008, 82086723, 82085836, 82087080, 46846960, 46847710, 53577493, 53578029, 53577491, 53577997, 46846937, 46847110]
-chr=['chr2', 'chr2', 'chr5', 'chr5', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr5', 'chr5', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr5', 'chr5', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr2', 'chr16', 'chr16', 'chr16', 'chr16', 'chr2', 'chr2']
-
-Coord_sort, chr_sort = chr_coord_sort(chr, coord)
-print(chr_sort)
-Grouped_coord = Grouping(Coord_sort, 5000)
-print(Grouped_coord)
-
-Group_size = [len(i) for i in Grouped_coord]
-print(Group_size)
-print(len(chr_sort))
-Grouped_chr = []
-j = [0]
-d = {}
-print(len(d))
-for i in Group_size:
-    First = sum(j[:])
-    Grouped_chr.append(chr_sort[First:First+i])
-    j.append(i)
-print(Grouped_chr)
-for i in range(len(Grouped_coord)):
-    if len(d) == 0:
-        d["test"] = [Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])]
+    #add these columns
+    add_col = ['Read_No','Read_IDs']
+    if len(list(beddict.keys())) == 1:
+        add_val = [len(list(beddict.keys())[0]), [[i for i in list(beddict.keys())[0]]]]
     else:
-        d["test"].extend([Grouped_chr[i][0], min(Grouped_coord[i]), max(Grouped_coord[i])])
+        add_val = [len(list(beddict.keys())[0]),[[i for i in list(beddict.keys())[0]]]]
 
-print(d)
-complex_df = pd.DataFrame.from_dict(d, orient='index')
-print(complex_df)
-bedtest = bt.BedTool.from_dataframe(complex_df)
-print("bed",bedtest)
-bedtest.saveas("test.bed")
-"""
-bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
-#print(Complex(bamfile,60,"chr7", 75713114, 75717415))
-#print(Complex(bamfile,60,"chr2", 82083496, 82087081))
-#print(Complex(bamfile,60,"chr2", 46846937, 46847710))
+    for i in range(len(add_col)):
+        simple_df.insert(loc=len(simple_df.columns), column=add_col[i], value=add_val[i])
 
-"""
-a = Complex(bamfile,60,"chr2", 82083496, 82087081)
-print(a)
+    #bedtest = bt.BedTool.from_dataframe(simple_df)
+    #bedtest.saveas(savename)
+    return simple_df
 
-print("------------")
-for k,v in a.items():
-    print("reads",k)
-    print("val",v)
-print("------------")
-test = sum(a.values(), [])
-print(test)
-chr = [item for item in test[::3] for i in range(2)]
-print(chr)
-del test[0::3]
-coord = test
-a,b = chr_coord_sort(chr,coord)
-print(a)
-print(b)
+def Simple_reads(dict,circ_no,coord,savename):
+    df_col = ["Circle_no", 'Read_ID', "Chr", "Start", "End"]
+    Ref_df = pd.DataFrame(columns=df_col)
+    keys = list(list(dict.keys())[0])
+    chr = list(dict.values())[0][0]
+    for i in range(len(keys)):
+        Ref_df.loc[len(Ref_df)] = [circ_no, keys[i], str(chr), coord[i][0], coord[i][1]]
 
-"""
+    bedtest = bt.BedTool.from_dataframe(Ref_df)
+    bedtest.saveas(savename)
+    #return complex_df
 
-def Read_BED(dict,savename):
+def Read_bed(dict,savename,circ_no):
     #finds the longest value and the corresponding key to create number of col in .BED
     max_key, max_value = max(dict.items(), key = lambda x: len(set(x[1])))
     df_col = ["Chr","Start","End"]
@@ -447,107 +436,117 @@ def Read_BED(dict,savename):
     complex_df = pd.DataFrame.from_dict(dict, orient='index',columns = Coord_Col)
 
     complex_df.insert(loc=0, column=first_col, value=list(dict.keys()))
-    All_col = [first_col]+Coord_Col
+    complex_df.insert(loc=0, column='Circ_no', value=circ_no)
 
-    complex_df = complex_df.sort_values(by=All_col)
     bedtest = bt.BedTool.from_dataframe(complex_df)
     bedtest.saveas(savename)
+    #return complex_df
 
-#c = Complex(bamfile,60,"chr2", 82083496, 82087081)
-
-#Read_BED(c,"New_test.bed")
-#def Circle_BED(dict,savename,Chr_list,Coord_list,Read_IDs):
-
-"""
-def File_identification(file_name,mapQ):
-    count = 0
+def BED_file_creation(file_name,mapQ):
+    Simple_count = 1
+    Simple_circ = pd.DataFrame()
     with open(file_name) as f:
         for line in f:
             line_value = line.strip().split()
             coord = line_value[0]
             start = line_value[1]
             end = line_value[2]
-            cov = line_value[3]
-            coord_dict = Complex(bamfile,mapQ, str(coord), int(start), int(end))
-            if bool(coord_dict) == True:
-                print(coord+":"+start+"-"+end)
-                print("dictionary",coord_dict)
-                count += 1
+            circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,mapQ, str(coord), int(start)-1000, int(end)+1000)
+            if circ_type == 1 or circ_type == 2:
+                circ_bed = Simple_circ_BED(circle_dict,Simple_count,"lol")
+                rows = pd.concat([Simple_circ,circ_bed])
+                Simple_circ = rows
+                Simple_count += 1
             else:
-                #those dict empy, possible due to complex circle formation
-                print(coord + ":" + start + "-" + end)
-                print("empy dictionary")
                 continue
-    print("the number of circles is",count)
-   
+    Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
+    Simple_bed.saveas("Simple_circles.bed")
 
-def Genome_Cov_identification(bamfile,bam_name,overlap,reverse_str):
-    Bedfile = pybedtools.example_bedtool(str(os.getcwd()) +"/"+bam_name)
-    Cov = Bedfile.genome_coverage(bg=True)
-    Merged = Cov.merge(d=overlap)
-
-    for region in Merged:
-        Chr = region[0]
-        start = region[1]
-        end = region[2]
-        if len(Single_coord(bamfile, reverse_str, str(Chr), int(start), int(end))) == 0:
-            continue
-        else:
-            print(Chr + ":" + start + "-" + end)
-            print(Single_coord(bamfile, reverse_str, str(Chr), int(start), int(end)))
-
-Single_coord(bamfile,reverse_str,mapQ,reg,start,end)
 
 bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 
-File_identification("BC05.ge_mean5.bdg",True,60)
-print("----------------")
-Genome_Cov_identification(bamfile,"BC05.aln_hg19.bam",500,True)
 
-def Count_reads(bamfile,reg,start,end):
-    "Count the number of Soft-clipped reads with a supplementary alignment"
-    s_count = 0
-    SA_count = 0
-    NO_SA_count = 0
-    supp_count = 0
-    for read in bamfile.fetch(reg,start,end,multiple_iterators=True):
-        if read.is_supplementary == True:
-            supp_count += 1
-        #OVERVEJ LIGE OM MAN IKKE FAKTISK MISTER MANGE VED IKKE AT BRUGE cigar[-1][0]
-        if read.cigar[0][0] == 4:
-            s_count += 1
-            if read.has_tag("SA"):
-                SA_count += 1
-            if not read.has_tag("SA"):
-                NO_SA_count +=1
-    print("total number of reads in the file",bamfile.count(reg,start,end,read_callback='nofilter'))
-    print("total number of soft-clipped",s_count)
-    print("Number of soft-clipped reads with SA",SA_count)
-    print("Number of soft-clipped reads wo. SA",NO_SA_count)
-    print("supp",supp_count)
+#SIMPLE
+#"chr1", 16626700, 16627600
+#"chr17", 25460000, 25461372
 
-#Count_reads(bamfile,None,None,None)
+#COMPLEX
+#"chr1", 16626700, 16627600
+#"chr9", 124876200, 124879026
 
-def Read_length(bamfile,reg,start,end,filename,read_type):
-    read_list = []
-    for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
-        if read_type == "Soft":
-            if read.cigar[0][0] == 4:
-                read_list.append(read.query_length)
-        elif read_type == "SA":
-            if read.cigar[0][0] == 4 and read.has_tag("SA"):
-                Tag = read.get_tag("SA").split(';')[:-1]
-                for Tagelem in Tag:
-                    Column_list = Tagelem.split(',')
-                    read_list.append(CIGAR_len(Column_list[3]))
-        elif read_type == "supp":
-            if read.is_supplementary == True:
-                read_list.append(read.query_length)
-    with open(filename, 'w') as f:
-        for item in read_list:
-            f.write("%s\n" % item)
+Simple_circ2,type2,coord2,chr2 = Complex(bamfile,60,"chr5", 121967700, 121972207)
+print(Simple_circ2)
+print(type2)
+Simple_circ_BED(Simple_circ2,1,"circ_test.bed","BCO5.test")
+Simple_reads(Simple_circ2,1,coord2,"read_test.bed")
+print("--------------------")
+Simple_circ1,type1,coord1,chr1 = Complex(bamfile,60,"chr1", 243928620, 243938331)
+print(Simple_circ1)
+print(type1, coord1, chr1)
+Simple_circ_BED(Simple_circ1,2,"circ_test2.bed","BC05.test")
+print("--------------------")
+Simple_circ3,type3,coord3,chr3 = Complex(bamfile,60,"chr8", 18429880, 18430874)
+print(Simple_circ3)
+print(type3)
+Simple_circ_BED(Simple_circ3,1,"circ_test3.bed","BCO5.test")
+Simple_reads(Simple_circ3,1,coord3,"read_test3.bed")
 
-#Read_length(bamfile,None,None,None,"Soft.txt","Soft")
-#Read_length(bamfile,None,None,None,"SA.txt","SA")
-#Read_length(bamfile,None,None,None,"Supp.txt","supp")
+"""
+circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,60,"chr9", 124876200, 124879026)
+print(circle_dict)
+print(circ_coord)
+Complex_circ_BED(circle_dict,circ_coord,circ_chr,2,"complex_test.bed")
+Read_bed(circle_dict,"complex_read.bed",2)
+
+bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
+#print(Complex(bamfile,60,"chr7", 75713114, 75717415))
+circle_dict01, circ_type01, circ_coord01, circ_chr01 = Complex(bamfile,60,"chr2", 82083496, 82087081)
+Complex_circ_BED(circle_dict01,circ_coord01,circ_chr01,2,"complex_test01.bed")
+Read_bed(circle_dict01,"complex_read01.bed",2)
+"""
+
+"""
+### PIROONS EXAMPLES
+bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
+print("------------EXP1------------")
+#EXP1
+Simple_circex1,typeex1,coordex1,chrex1 = Complex(bamfile,60,"chr15",61542195, 61543098)
+print(Simple_circex1.values())
+print(len(Simple_circex1))
+Simple_circex2,typeex2,coordex2,chrex2 = Complex(bamfile,60,"chrX",134214237, 134216582)
+print(Simple_circex2.values())
+print(len(Simple_circex2))
+Simple_circex3,typeex3,coordex3,chrex3 = Complex(bamfile,60,"chr1",174736312, 174736815)
+print(Simple_circex3.values())
+print(len(Simple_circex3))
+Simple_circex4,typeex4,coordex4,chrex4 = Complex(bamfile,60,"chr5",102603478, 102604257)
+print(Simple_circex4.values())
+print(len(Simple_circex4))
+print("------------EXP3------------")
+#EXP3
+Simple_circP1,typeP1,coordP1,chrP1 = Complex(bamfile,60,"chr17",6987470, 6992918)
+print(Simple_circP1.values())
+print(len(Simple_circP1))
+Simple_circP2,typeP2,coordP2,chrP2 = Complex(bamfile,60,"chr2",151169257, 151170272)
+print(Simple_circP2.values())
+print(len(Simple_circP2))
+
+#Complex_circ_BED(Simple_circ2,coord2,chr2,2,"complex_Piroon.bed")
+#Read_bed(circle_dict01,"complex_Piroon_read.bed",2)2
+"""
+
+
+"""
+#Type 0: - Empty dict
+Simple_circ0,type0,coord0,chr0 = Complex(bamfile,60,"chr10", 18577508, 18579630)
+print(Simple_circ0)
+#Type 1: - Simple dict 1 coord
+Simple_circ1,type1,coord1,chr1 = Complex(bamfile,60,"chr1", 243928620, 243938331)
+print(Simple_circ1)
+#Type 2: - Simple dict several coord
+Simple_circ2,type2,coord2,chr2 = Complex(bamfile,60,"chr5", 121967700, 121972207)
+print(Simple_circ2)
+#Type 3: - Complex circle
+complex_circ3,type3,Total_coord3,Total_chr3 = Complex(bamfile,60,"chr1", 16626700, 16627600)
+print(complex_circ3)
 """
