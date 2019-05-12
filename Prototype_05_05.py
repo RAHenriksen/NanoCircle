@@ -463,90 +463,21 @@ def BED_file_creation(file_name,mapQ):
     Simple_bed.saveas("Simple_circles.bed")
 
 
-bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
-
-
-#SIMPLE
-#"chr1", 16626700, 16627600
-#"chr17", 25460000, 25461372
-
-#COMPLEX
-#"chr1", 16626700, 16627600
-#"chr9", 124876200, 124879026
-
-Simple_circ2,type2,coord2,chr2 = Complex(bamfile,60,"chr5", 121967700, 121972207)
-print(Simple_circ2)
-print(type2)
-Simple_circ_BED(Simple_circ2,1,"circ_test.bed","BCO5.test")
-Simple_reads(Simple_circ2,1,coord2,"read_test.bed")
-print("--------------------")
-Simple_circ1,type1,coord1,chr1 = Complex(bamfile,60,"chr1", 243928620, 243938331)
-print(Simple_circ1)
-print(type1, coord1, chr1)
-Simple_circ_BED(Simple_circ1,2,"circ_test2.bed","BC05.test")
-print("--------------------")
-Simple_circ3,type3,coord3,chr3 = Complex(bamfile,60,"chr8", 18429880, 18430874)
-print(Simple_circ3)
-print(type3)
-Simple_circ_BED(Simple_circ3,1,"circ_test3.bed","BCO5.test")
-Simple_reads(Simple_circ3,1,coord3,"read_test3.bed")
-
-"""
-circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,60,"chr9", 124876200, 124879026)
-print(circle_dict)
-print(circ_coord)
-Complex_circ_BED(circle_dict,circ_coord,circ_chr,2,"complex_test.bed")
-Read_bed(circle_dict,"complex_read.bed",2)
-
-bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
-#print(Complex(bamfile,60,"chr7", 75713114, 75717415))
-circle_dict01, circ_type01, circ_coord01, circ_chr01 = Complex(bamfile,60,"chr2", 82083496, 82087081)
-Complex_circ_BED(circle_dict01,circ_coord01,circ_chr01,2,"complex_test01.bed")
-Read_bed(circle_dict01,"complex_read01.bed",2)
-"""
-
-"""
 ### PIROONS EXAMPLES
 bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 print("------------EXP1------------")
 #EXP1
 Simple_circex1,typeex1,coordex1,chrex1 = Complex(bamfile,60,"chr15",61542195, 61543098)
 print(Simple_circex1.values())
-print(len(Simple_circex1))
 Simple_circex2,typeex2,coordex2,chrex2 = Complex(bamfile,60,"chrX",134214237, 134216582)
 print(Simple_circex2.values())
-print(len(Simple_circex2))
 Simple_circex3,typeex3,coordex3,chrex3 = Complex(bamfile,60,"chr1",174736312, 174736815)
 print(Simple_circex3.values())
-print(len(Simple_circex3))
 Simple_circex4,typeex4,coordex4,chrex4 = Complex(bamfile,60,"chr5",102603478, 102604257)
 print(Simple_circex4.values())
-print(len(Simple_circex4))
 print("------------EXP3------------")
 #EXP3
 Simple_circP1,typeP1,coordP1,chrP1 = Complex(bamfile,60,"chr17",6987470, 6992918)
 print(Simple_circP1.values())
-print(len(Simple_circP1))
 Simple_circP2,typeP2,coordP2,chrP2 = Complex(bamfile,60,"chr2",151169257, 151170272)
 print(Simple_circP2.values())
-print(len(Simple_circP2))
-
-#Complex_circ_BED(Simple_circ2,coord2,chr2,2,"complex_Piroon.bed")
-#Read_bed(circle_dict01,"complex_Piroon_read.bed",2)2
-"""
-
-
-"""
-#Type 0: - Empty dict
-Simple_circ0,type0,coord0,chr0 = Complex(bamfile,60,"chr10", 18577508, 18579630)
-print(Simple_circ0)
-#Type 1: - Simple dict 1 coord
-Simple_circ1,type1,coord1,chr1 = Complex(bamfile,60,"chr1", 243928620, 243938331)
-print(Simple_circ1)
-#Type 2: - Simple dict several coord
-Simple_circ2,type2,coord2,chr2 = Complex(bamfile,60,"chr5", 121967700, 121972207)
-print(Simple_circ2)
-#Type 3: - Complex circle
-complex_circ3,type3,Total_coord3,Total_chr3 = Complex(bamfile,60,"chr1", 16626700, 16627600)
-print(complex_circ3)
-"""

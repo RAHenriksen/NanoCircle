@@ -581,8 +581,9 @@ def FULL(file_name,bamname,mapQ):
     bedtest = bt.BedTool.from_dataframe(read_df_full)
     bedtest.saveas("Final_BED/Complex_reads2.bed")
 
-bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
-
+#bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 #BED_Creation("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
 #Complex_test("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
-FULL("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
+#FULL("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
+
+
