@@ -210,6 +210,7 @@ def chr_coord_sort(chrlist,coordlist):
     return Coord_sort,chr_sort
 
 def Grouping_chr(Chr_sort,Group_size):
+    """ Groups the chromosomes in to match the grouped coordinates """
     Grouped_chr = []
     Step = 0
     for i in Group_size:
@@ -283,9 +284,9 @@ def Complex(bamfile,mapQ,reg, start, end):
                 continue
 
             elif int(Column_list[4]) >= mapQ:
-                #print("tagelem",Tagelem)
                 #creates a coordinate list
-                #print("name",read.query_name)
+                print("READ", read.query_name)
+                #print(Tagelem)
                 #print("POS",pos_start,pos_end)
                 Coord_list.append(pos_start)
                 Coord_list.append(pos_end)
@@ -296,7 +297,7 @@ def Complex(bamfile,mapQ,reg, start, end):
                 Total_chr.extend((chrom, chrom))
                 #print("NEW POS",Coord_list)
                 Total_coord.extend((pos_start, pos_end))
-
+                print("TOtal_coord",Total_coord)
             if Coord_list != []:
                 #sorts the chr and coordinates
                 Coord_sort, chr_sort = chr_coord_sort(chroms, Coord_list)
@@ -358,6 +359,17 @@ def Complex(bamfile,mapQ,reg, start, end):
 
 
 
+bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
+#FULL("BC01.eccdna.ge_mean5.bdg","BC01.aln_hg19.bam",60)
+
+#print(Complex(bamfile,40,"chr2", 82083496, 82087081))
+#DICT LÆNGDE 9 passer ikke med bed dad et kun er 8
+print("-----------------------------")
+#print(Complex(bamfile,40,"chr2", 46846900, 46849100))
+#LEN = 2 passer med bed
+print("---------------------------")
+print(Complex(bamfile,40,"chr5", 24649000,24651100))
+#længde er 5, passer heller ikke med bed som er 4
 ####
 # OKAY PROBLEMET LIGGER I AT NOGLE AF DE KOMPLEKSE CIRKLER ER IKKE SINGLE_COORD, SÅ DER BLIVER RETURNERET CIRCLE_DICT
 # OG DERFOR IKKE TILFØJET KOORDINAT MED DET SAMME, DERFOR VED SLICING OPPE I KOMPLEKS SÅ BLIVER DE FORKERTE VÆRDIER TAGET UD
@@ -489,7 +501,7 @@ def BED_Creation(file_name,bamname,mapQ):
             elif circ_type == 2:
                 circ_bed = Simple_circ_BED(circle_dict, Simple_count,circ_type,"lol",bamname)
                 print(circ_bed)
-                circ_read = Simple_reads(circle_dict,Simple_count,circ_coord,circ_type,"read_test.bed","BC05.aln_hg19.bam")
+                circ_read = Simple_reads(circle_dict,Simple_count,circ_coord,circ_type,"read_test.bed","BC01.aln_hg19.bam")
                 row_red = pd.concat([Simple_read,circ_read])
                 rows = pd.concat([Simple_circ, circ_bed])
                 Simple_circ = rows
@@ -556,7 +568,7 @@ def FULL(file_name,bamname,mapQ):
             elif circ_type == 2:
                 circ_bed = Simple_circ_BED(circle_dict, Simple_count,circ_type,"lol",bamname)
                 print(circ_bed)
-                circ_read = Simple_reads(circle_dict,Simple_count,circ_coord,circ_type,"read_test.bed","BC05.aln_hg19.bam")
+                circ_read = Simple_reads(circle_dict,Simple_count,circ_coord,circ_type,"read_test.bed","BC01.aln_hg19.bam")
                 row_red = pd.concat([Simple_read,circ_read])
                 rows = pd.concat([Simple_circ, circ_bed])
                 Simple_circ = rows
@@ -572,18 +584,19 @@ def FULL(file_name,bamname,mapQ):
             else:
                 continue
     Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
-    Simple_bed.saveas("Final_BED/Simple_circles2.bed")
+    Simple_bed.saveas("Final_BED/Simple_circles_BC05.bed")
     Simple_read_bed = bt.BedTool.from_dataframe(Simple_read)
-    Simple_read_bed.saveas("Final_BED/Simple_reads2.bed")
+    Simple_read_bed.saveas("Final_BED/Simple_reads_BC05.bed")
 
     bedtest = bt.BedTool.from_dataframe(Complex_df)
-    bedtest.saveas("Final_BED/Complex_circles2.bed")
+    bedtest.saveas("Final_BED/Complex_circles_BC05.bed")
     bedtest = bt.BedTool.from_dataframe(read_df_full)
-    bedtest.saveas("Final_BED/Complex_reads2.bed")
+    bedtest.saveas("Final_BED/Complex_reads_BC05.bed")
 
-#bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
+bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 #BED_Creation("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
 #Complex_test("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
 #FULL("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",60)
 
 
+#print(Complex(bamfile,40,"chr16", 53577500,53578071))
