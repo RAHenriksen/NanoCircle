@@ -19,14 +19,26 @@ def read_count(bamfile):
     """ Counts all the reads in a bamfile"""
     return bamfile.count()
 
-def CIGAR_len(cigar_str):
+def Full_CIGAR(cigar_str):
+    """Returns the actual length of the sequence based on the CIGAR int values"""
+    count = 0
+    for i in re.findall(r'(\d+)([A-Z]{1})', cigar_str):
+        if i[-1] == "M" or i[-1] == "I" or i[-1] == "H" or i[-1] =="S":
+            count += int(i[0])
+        elif i[-1] == "D":
+            continue
+        #    count -= int(i[0])
+    return count
+
+def CIGAR_primary(cigar_str):
     """Returns the actual length of the sequence based on the CIGAR int values"""
     count = 0
     for i in re.findall(r'(\d+)([A-Z]{1})', cigar_str):
         if i[-1] == "M" or i[-1] == "I" or i[-1] == "H":
             count += int(i[0])
-        elif i[-1] == "D":
-            count -= int(i[0])
+        elif i[-1] == "D" or i[-1] =="S":
+            continue
+        #    count -= int(i[0])
     return count
 
 def CIGAR_pos(cig_str,char_str):
@@ -140,21 +152,39 @@ def Read_length(bamfile,reg,start,end,filename,read_type):
     read_list = []
     for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
         if read_type == "Soft":
+            #full length of the entire soft-clipped
             if read.cigar[0][0] == 4:
+                #print("length",read.query_length)
+                #print("CIGARLen",Full_CIGAR(str(read.cigarstring)))
+                #print("str",read.cigarstring)
                 read_list.append(read.query_length)
         elif read_type == "SA":
+            #length without the soft clipped part, so primary part
             if read.cigar[0][0] == 4 and read.has_tag("SA"):
                 Tag = read.get_tag("SA").split(';')[:-1]
                 for Tagelem in Tag:
                     Column_list = Tagelem.split(',')
-                    read_list.append(CIGAR_len(Column_list[3]))
+                    print(Column_list)
+                    print("cigar",CIGAR_primary(Column_list[3]))
+                    read_list.append(CIGAR_primary(Column_list[3]))
         elif read_type == "supp":
             if read.is_supplementary == True:
+                print("cigar",read.cigarstring)
+                print("len",read.query_length)
+                print("test",CIGAR_primary(str(read.cigarstring)))
                 read_list.append(read.query_length)
     with open(filename, 'w') as f:
         for item in read_list:
             f.write("%s\n" % item)
 
-#Read_length(bamfile,None,None,None,"Soft.txt","Soft")
-#Read_length(bamfile,None,None,None,"SA.txt","SA")
-#Read_length(bamfile,None,None,None,"Supp.txt","supp")
+sample = "BC08"
+bamfile = ps.AlignmentFile("/isdata/common/wql443/Thesis_2019/Analysis/2.8samples/%s/%s.aln_hg19.bam" % (sample,sample),"rb")
+### DER ER NOGLE PROBLEMER MED CIGAR LENGTH
+Read_length(bamfile,None,None,None,"Read_length/2.8/%s_Soft.txt" % sample,"Soft")
+#Read_length(bamfile,None,None,None,"Read_length/%s_SA.txt" % sample,"SA")
+#Read_length(bamfile,None,None,None,"Read_length/%s_Supp.txt" % sample,"supp")
+
+#print(CIGAR_len("496S345M4D"))
+#print(CIGAR_len("159S119M3I2S"))
+#print(CIGAR_len("1346S68M"))
+#print(CIGAR_len("466S250M11D671S"))

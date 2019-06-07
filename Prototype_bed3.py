@@ -359,7 +359,7 @@ def Complex(bamfile,mapQ,reg, start, end):
 
 
 
-bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
+#bamfile = ps.AlignmentFile("BC01.aln_hg19.bam","rb")
 #FULL("BC01.eccdna.ge_mean5.bdg","BC01.aln_hg19.bam",60)
 
 #print(Complex(bamfile,40,"chr2", 82083496, 82087081))
@@ -368,7 +368,7 @@ print("-----------------------------")
 #print(Complex(bamfile,40,"chr2", 46846900, 46849100))
 #LEN = 2 passer med bed
 print("---------------------------")
-print(Complex(bamfile,40,"chr5", 24649000,24651100))
+#print(Complex(bamfile,40,"chr5", 24649000,24651100))
 #længde er 5, passer heller ikke med bed som er 4
 ####
 # OKAY PROBLEMET LIGGER I AT NOGLE AF DE KOMPLEKSE CIRKLER ER IKKE SINGLE_COORD, SÅ DER BLIVER RETURNERET CIRCLE_DICT
@@ -600,3 +600,94 @@ bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
 
 
 #print(Complex(bamfile,40,"chr16", 53577500,53578071))
+
+def density_plot(dict1):
+    """ plots the distribution of split-reads across a chromosome region """
+    x1 = []
+    x2 = []
+    #append the positions to list
+    for k,v in dict1.items():
+        x1.append(v[0])
+        x2.append(v[1])
+    colors=["dodgerblue","darkorange"]
+    labels = ["Primary alignment","Supplementary alignment"]
+    plt.hist([x1,x2],bins=20,color=colors,label=labels,range=(min(x1),max(x2)))
+    plt.title("Distribution of primary and supplementary")
+    plt.xlabel("Chromosomal coordinates")
+    plt.ylabel("Count of alignments")
+    plt.legend(loc='upper center')
+    plt.show()
+
+#Single_coord(bamfile,mapQ,reg,start,end)
+#Supplement_dict
+test = reduce_coords(bamfile, 60, "chr1", 243928620, 243938331)
+for k,v in test.items():
+    print(v)
+density_plot(test)
+
+
+
+def BED_Coverage(file_name,bamname,overlap,mapQ):
+    bamfile = ps.AlignmentFile(bamname, "rb")
+
+    Bedfile = pybedtools.example_bedtool(str(os.getcwd()) +"/"+bam_name)
+    Cov = Bedfile.genome_coverage(bg=True)
+    Merged = Cov.merge(d=overlap)
+
+    Simple_count = 1
+    Simple_circ = pd.DataFrame()
+    Simple_read = pd.DataFrame()
+
+    Complex_count = 1
+    Complex_df = pd.DataFrame()
+    read_df_full = pd.DataFrame()
+
+    Complex_col_no = Complex_full_length(file_name, bamname, mapQ)
+
+    for region in Merged:
+        coord = region[0]
+        start = region[1]
+        end = region[2]
+        circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,mapQ, str(coord), int(start), int(end))
+
+        if circ_type == 1:
+            circ_bed = Simple_circ_BED(circle_dict,Simple_count,circ_type,"lol",bamname)
+            print(circ_bed)
+            rows = pd.concat([Simple_circ,circ_bed])
+            Simple_circ = rows
+            Simple_count += 1
+
+        #if the circle has more than 1 potential coordinate set
+        elif circ_type == 2:
+            circ_bed = Simple_circ_BED(circle_dict, Simple_count,circ_type,"lol",bamname)
+            print(circ_bed)
+            circ_read = Simple_reads(circle_dict,Simple_count,circ_coord,circ_type,"read_test.bed","BC01.aln_hg19.bam")
+            row_red = pd.concat([Simple_read,circ_read])
+            rows = pd.concat([Simple_circ, circ_bed])
+            Simple_circ = rows
+            Simple_read = row_red
+            Simple_count += 1
+
+        elif circ_type == 3:
+            df = Complex_circ_BED(circle_dict, circ_coord, circ_chr, Complex_col_no, Complex_count, circ_type, "loll", file_name)
+            Complex_df = Complex_df.append(df, sort=False).fillna("nan")
+            read_df = Complex_reads(circle_dict,Complex_col_no,Complex_count,circ_type,"read.bed",file_name)
+            read_df_full = read_df_full.append(read_df,sort=False).fillna("nan")
+            Complex_count += 1
+        else:
+            continue
+    Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
+    Simple_bed.saveas("Final_BED/Simple_circles_BC05_cov.bed")
+    Simple_read_bed = bt.BedTool.from_dataframe(Simple_read)
+    Simple_read_bed.saveas("Final_BED/Simple_reads_BC05_cov.bed")
+
+    bedtest = bt.BedTool.from_dataframe(Complex_df)
+    bedtest.saveas("Final_BED/Complex_circles_BC05_cov.bed")
+    bedtest = bt.BedTool.from_dataframe(read_df_full)
+    bedtest.saveas("Final_BED/Complex_reads_BC05_cov.bed")
+
+
+print("l9oool")
+bamfile = ps.AlignmentFile("BC05.aln_hg19.bam","rb")
+BED_Coverage("BC05.ge_mean5.bdg","BC05.aln_hg19.bam",500,60)
+print("done")
