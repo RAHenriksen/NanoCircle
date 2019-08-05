@@ -65,15 +65,16 @@ def Read_dist(Read_list,bins,label,figlabel,int1,int2):
     plt2.show()
 
 ### PLOTTING CODE ##
-test = Coord_dict(bamfile, False, "chr1", 243928620, 243938331)
-density_plot(test)
-test = Coord_dict(bamfile, True, "chr1", 243928620, 243938331)
-density_plot(test)
+#test = Coord_dict(bamfile, False, "chr1", 243928620, 243938331)
+#density_plot(test)
+#test = Coord_dict(bamfile, True, "chr1", 243928620, 243938331)
+#density_plot(test)
 
-bamfile2 = ps.AlignmentFile("chr1_243928620_243938331_region.bam", "rb")
+#bamfile2 = ps.AlignmentFile("chr1_243928620_243938331_region.bam", "rb")
 
-SA_list,NoSA_list = Softclipped_NoSA_count(bamfile2,"SA")
+#SA_list,NoSA_list = Softclipped_NoSA_count(bamfile2,"SA")
 
-Read_dist(SA_list,100,"with supplementary alignment","SA",1000,100)
-Read_dist(NoSA_list,100,"without supplementary alignment","NoSA",1000,100)
+#Read_dist(SA_list,100,"with supplementary alignment","SA",1000,100)
+#Read_dist(NoSA_list,100,"without supplementary alignment","NoSA",1000,100)
 
+print("dette lort virker efter mounting shit")
