@@ -1,5 +1,8 @@
 import Utils
 import pysam as ps
+import numpy as np
+from collections import Counter
+
 print("Imports the simple script")
 
 class Simple_circ:
@@ -8,44 +11,6 @@ class Simple_circ:
         self.bamfile = bamfile
         self.output = output
         self.MapQ = MapQ
-
-    def Reads(self):
-        read_file = Utils.SamBamParser(self.bamfile)
-        read_dict = {}
-        counter=0
-        for read in read_file.fetch():
-            if counter == 10:
-                return read_dict
-                break
-
-            #print("READ NAME",read.query_name)
-            # checks if soft-clipped
-            if Utils.IS_SA(read, self.MapQ) == True:
-
-                pos = ps.AlignedSegment.get_reference_positions(read)
-
-                Tag = read.get_tag("SA").split(',')
-                if len(Tag) == 6:
-                    if int(Tag[4]) >= self.MapQ:
-                        counter += 1
-                        print("primary", read.query_name, read.reference_name, pos[0], pos[-1])
-                        print("supp", read.get_tag("SA").split(','),Utils.CIGAR_len(Tag[3]))
-                        read_dict[read.query_name] = [read.reference_name, pos[0], pos[-1]]
-                else:
-                    counter += 1
-                    MapQ_val = Tag[4::5] # possible mapq
-                    Start_possible = Tag[1::5] # possible start coordinates
-
-                    start_coord = []
-                    end_coord = []
-                    #print("secondayr", read.query_name, read.reference_name,Tag,pos[0], pos[-1])
-                    #for i in range for same index
-                    for i in range(len(MapQ_val)):
-                        if int(MapQ_val[i]) >= self.MapQ: # if the different mapQ == 60
-                            start_coord.append(Start_possible[i]) # takes the coresponding val
-                            end_coord.append(int(Start_possible[i])+Utils.CIGAR_len(Tag[3::5][i])) # add the cigar str
-
-                    read_dict[read.query_name] = [read.reference_name, start_coord, end_coord]
 
     def Read_pos(self):
         read_file = Utils.SamBamParser(self.bamfile)
@@ -81,36 +46,110 @@ class Simple_circ:
                     Start_possible = Tag[1::5] # possible start coordinates
 
                     mult_coord = []
-                    #for i in range for same index
+
+                    #for i in range for same index of the mapQ, start pos, cigarstring
                     for i in range(len(MapQ_val)):
                         if int(MapQ_val[i]) >= self.MapQ: # if the different mapQ == 60
+
+                            #creates a list of list, with each sublist being the coordinate interval
                             mult_coord.append([int(Start_possible[i]),
                                                int(Start_possible[i])+Utils.CIGAR_len(Tag[3::5][i])])
 
-                    Pos_dict[read.query_name] = [Tag[0], prim_pos, mult_coord]
+                    #flatten the entire mult_coord list of list, into a single list
+                    supp_pos =  list(np.array(mult_coord).flat)
+
+                    Pos_dict[read.query_name] = [Tag[0], prim_pos, supp_pos]
 
         return Pos_dict
 
-print("---------------")
+    def flatten(self,irreg_list):
+        for i in irreg_list:
+            if isinstance(i, (list, tuple)):
+                for j in self.flatten(i):
+                    yield j
+            else:
+                yield i
+
+    def Circ_possible(self):
+        Pos_dict = self.Read_pos()
+        Circ_pos = {}
+
+        #determine if the prim pos is upstream or downstream of supp pos
+        for read_ID,coord_pos in Pos_dict.items():
+            # primary read upstream of supp align
+            if min(coord_pos[1]) <= min(coord_pos[2]) and max(coord_pos[1]) <= max(coord_pos[2]):
+                dic_val = [coord_pos[0],
+                           int(min(coord_pos[1])), # minimum prim coord (start coord)
+                           coord_pos[2][1::2]]     # every second supp coord from index 1 (possible end coord)
+
+                # flattens the irrecular list (dic_val) with structure [chr,coord,[coord1,coord2]]
+                Circ_pos[read_ID] = list(self.flatten(dic_val))
+
+            # primary read spanning entire circle, but weird supp is inside interval
+            if min(coord_pos[1]) <= min(coord_pos[2]) and max(coord_pos[1]) >= max(coord_pos[2]):
+                dic_val = [coord_pos[0],
+                           int(min(coord_pos[1])),
+                           int(max(coord_pos[1]))]
+
+                Circ_pos[read_ID] = list(self.flatten(dic_val))
+
+            # supplementary align upstream of prim align
+            # i could use the strategy of keeping the multiple supp alignments for start coord
+            if min(coord_pos[2]) <= min(coord_pos[1]) and max(coord_pos[2]) <= max(coord_pos[1]):
+                dic_val = [coord_pos[0],
+                           coord_pos[2][0::2], #every second supp coord from index 0 (possible start coord)
+                           int(max(coord_pos[1]))]
+                Circ_pos[read_ID] = list(self.flatten(dic_val))
+
+            # supplementary read spanning entire circle, but weird prim is inside interval
+            if min(coord_pos[2]) <= min(coord_pos[1]) and max(coord_pos[2]) >= max(coord_pos[1]):
+                dic_val = [coord_pos[0],
+                           int(min(coord_pos[2])),
+                           int(max(coord_pos[2]))]
+                Circ_pos[read_ID] = list(self.flatten(dic_val))
+
+        return Circ_pos
+
+    def reduce_end_coords(self):
+        """ Reduce the number of end coordinates for those reads with several
+        supplementary alignments by comparing the position to the other end positions"""
+
+        Coord = self.Circ_possible()
+        # Counter of second list element for 2-element lists.
+        # I dont have several primary so there is no need for counting them
+        count = Counter(v[1] for v in Coord.values() if len(v) == 2)
+        # Result dict
+        reduce_dic = {}
+        # Iterate data entries
+        for k, v in Coord.items():
+            # Modify lists longer than two with at least one element in the counter
+            if len(v) > 2 and any(elem in count for elem in v[1:]):
+                # Replace list with first element and following element with max count
+                v = [v[0], max(v[1:], key=lambda elem: count.get(elem, 0))]
+            # Add to result
+            reduce_dic[k] = v
+        return reduce_dic
+
 if __name__ == '__main__':
 
     Circ_class=Simple_circ("/isdata/common/wql443/NanoCircle/BC02.aln_hg19.bam","lol",60)
-    dict = Circ_class.Read_pos()
-    print(dict)
-    #dict = Circ_class.Reads()
+    dict = Circ_class.Circ_possible()
 
-#    for k,v in dict.items():
-#        print(k,v)
+    list = []
+    print([{k: v} for (k, v) in dict.items()])
+
+    for k,v in dict.items():
+        if
+        print(k,v)
+
+
+
 
 """
-59860e12-1576-4e0c-b190-482547539045 ['chr10', ['19013902', '19013547'], [19014590, 19014064]] #multiple start and end
-b4f70162-08e4-40dc-aa10-73eec0961ef4 ['chr10', 19010495, 19011733] # single start and single end
-22ec4a10-9c10-40e3-9ca1-7abb521dbb59 ['chr10', 19010502, 19014290]
-4691e064-2290-4067-8082-3c7b285dcad1 ['chr10', ['19013847', '19012994', '19010507'], [19014666, 19013518, 19010927]]
-8acd93e4-566e-4f1f-86ff-2f9ea2b7bb39 ['chr10', 19010805, 19013008]
-c0ca6bbd-8d5a-4a5d-87fc-52c46854347b ['chr10', ['19010499', '19013814'], [19011604, 19014672]]
-ed79dc24-b59a-44d0-b1d1-9760ed3c2c1c ['chr10', 19013260, 19014018]
-f8d8742c-0b62-43c6-b33a-d223b9e595b3 ['chr10', ['37375766'], [37377130]] #multiple start and end, but only one with q above 60
-96f5cb5f-5cb8-4cb1-8625-a723b774e91c ['chr10', ['76314667', '76311112', '76312785'], [76315990, 76312224, 76312963]]
-8908600e-54a0-409f-9dcc-0c99d9869fc5 ['chr11', 14806147, 14807426]
-"""
+    dict_test = {'key1': [19010495, 19014658, 19014064],
+                 'key2': [19010495, 19014658],
+                 'key3': [19010495, 19014658],
+                 'key4': [19010502, 19014641]}
+
+    Circ_class.reduce_end_coords(dict_test)"""
+
