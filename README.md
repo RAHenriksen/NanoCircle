@@ -1,18 +1,13 @@
-###################################################
-# NanoCircle 2020
-# Rasmus Amund Henriksen, wql443@alumni.ku.dk ###
-###################################################
+### NanoCircle, Rasmus Amund Henriksen, wql443@alumni.ku.dk
 
 The github reporsitory for the under development
-tool, NanoCircle. Useful for identifying the coordinates
+tool, NanoCircle 2020. Useful for identifying the coordinates
 of both simple and chimeric circular molecules, sequenced
 using long-read sequencing.
 
 # Some presteps to perform before running NanoCircle
 
-########################################
-## STEP1 - Trimming and prehandling ###
-########################################
+## STEP1 - Trimming and prehandling
 
 ### adapter and barcode trimming 
 ~~~~bash
@@ -20,9 +15,7 @@ porechop -i bc05.reads.fastq -b bc05.barcode_trim -t 8
 ~~~~
 Use fastq-stats to obtain information regarding the sequences
 
-###########################################
-## STEP2 - Alignment of sequence reads ###
-###########################################
+## STEP2 - Alignment of sequence reads
 
 ### creating index
 ~~~~bash
@@ -36,9 +29,8 @@ minimap2 -t 8 -ax map-ont --secondary=no hg19.25chr.mmi read_file.fastq | samtoo
 # --seconday=no With no reads mapped with SAM flag 0x100 (secondary flag). 
 # hg19.25chr.mmi minimizer index for the reference
 ~~~ 
-#################################################
-## STEP3 - Identifying representative regions ###
-#################################################
+
+## STEP3 - Identifying representative regions
 
 ### bedtools genomecov + merge
 ~~~bash
