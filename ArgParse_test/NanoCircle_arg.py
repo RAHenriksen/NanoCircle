@@ -56,37 +56,30 @@ class NanoCircle:
                 self.subprogram = self.args_Classify()
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 
+                import Classify_cmd as Classes
+                Class_object = Classes.Read_Filter(self.args.ibam,self.args.mapq)
+                read_files = Class_object.Filter()
+
             elif sys.argv[1] == "Simple":
                 print("Simple works")
-
                 # Defines the subprogram with the arguments given by args_Simple()
                 self.subprogram = self.args_Simple()
-
                 # passes all the arguments needed for the simple commands
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 
                 #imports the Simple sub-command defined in another script
                 import Simple_cmd as Sim
-                print("mapq",self.args.mapq)
-                # parse the created argument object into the File_parser script to load the data
-                # with Input_parser() function
-                data_class = File_parser.Input_Parser(self.args.input)
-                data_in = data_class.parse_data()
 
                 # passes the loaded data into the Simple_cmd script
-                Class_object = Sim.Simple_circ(data_in)
-                data_out = Class_object.reverse()
-
-                # passes the results to the File_parser script saving the resulting data
-                Out_class = File_parser.Output_Parser(data_out, self.args.output)
-                Out_class.dataframe()
+                Class_object = Sim.Simple_circ(self.args.input,self.args.output,self.args.mapq)
+                test = Class_object.Reads()
 
             elif sys.argv[1] == "Chimeric":
                 print("Chimeric works")
                 self.subprogram = self.args_Chimeric()
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 
-                import Chimeric_eccDNA as Chim
+                import Chimeric_cmd as Chim
 
                 Class_object = Chim.Chimeric_circ(self.args.i)
                 Class_object.multiply()
@@ -107,7 +100,7 @@ class NanoCircle:
         optional = parser.add_argument_group('optional arguments')
 
         # required arguments
-        required.add_argument("-o", "--output", required=True, metavar="", help='Tab seperated identified circles')
+        required.add_argument("-i", "--ibam",required=True, metavar="", help='Bam file with circle reads')
 
         # optional arguments
         optional.add_argument("-q", "--mapq", metavar="", default=60, type=int, help='Mapping Quality, default 60')
@@ -151,10 +144,13 @@ class NanoCircle:
         optional = parser.add_argument_group('optional arguments')
 
         # required arguments
-        required.add_argument("-t", "--test", required=True, metavar="", help='Tab seperated identified circles')
+        required.add_argument("-i", "--input", required=True, metavar="",
+                              help='Tab seperated potential regions')
+        required.add_argument("-o", "--output", required=True, metavar="",
+                              help='Tab seperated identified circles, No. columns corresponds to most complex chimeric circle')
 
         # optional arguments
-        optional.add_argument("-O", "--OLL", metavar="", default=60, type=int, help='Mapping Quality, default 60')
+        optional.add_argument("-q", "--mapq", metavar="", default=60, type=int, help='Mapping Quality, default 60')
 
         # if no arguments are parsed
         if len(sys.argv[2:]) == 0:

@@ -1,3 +1,22 @@
+import argparse
+import edlib as ed
+import pandas as pd
+import seaborn as sns
+import numpy as np
+import pybedtools as bt
+from Bio import SeqIO
+import re
+import os
+import pysam as ps
+import matplotlib.pyplot as plt
+import pylab as plt2
+import time
+from collections import defaultdict
+from matplotlib.patches import Rectangle
+from collections import Counter
+import pybedtools
+import math
+import operator
 
 def CIGAR_len(cigar_str):
     """Returns the actual length of the sequence based on the CIGAR int values"""
@@ -163,7 +182,7 @@ def most_frequent(List,pos):
 
     #creates the interval immediately
     else:
-        most_common_no = list(map(itemgetter(1), count1.most_common()))
+        most_common_no = list(map(operator.itemgetter(1), count1.most_common()))
         most_common_idx = [i for i, x in enumerate(most_common_no) if x == max(most_common_no)]
 
 
@@ -665,63 +684,11 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
 
 
 ID = "BC08"
-dir = "/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/".format(ID)
+dir = "/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/2.8samples/{0}/".format(ID)
 bamfile = ps.AlignmentFile(dir+"{0}.aln_hg19.bam".format(ID),"rb")
-#BED_Coverage(dir,bamfile,"{0}.aln_hg19.bam".format(ID),1000,"/isdata/common/wql443/Thesis_2019/Analysis/Pysam_test/NanoCircle/{0}_".format(ID),60)
-FULL("/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/{0}_1000_cov.bed".format(ID),bamfile,"{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/Identified_circles/{0}_".format(ID),60)
 
+#FULL("/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/{0}_1000_cov.bed".format(ID),bamfile,"{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/Identified_circles/{0}_".format(ID),60)
 
+FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/2.8samples/{0}/{0}_1000_cov.bed".format(ID),bamfile,
+     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)
 
-"""
-
-bamfile = ps.AlignmentFile("/isdata/common/wql443/Thesis_2019/ref_genome/contamination_sources/test2.bam","rb")
-#BED_Coverage("/isdata/common/wql443/Thesis_2019/ref_genome/contamination_sources/",bamfile,"contamination.bam",1000,"/isdata/common/wql443/Thesis_2019/Analysis/",60)
-
-#file_name,bamfile,bamname,savedir,mapQ
-FULL("/isdata/common/wql443/Thesis_2019/ref_genome/contamination_sources/lol.bed",bamfile,"test2.bam","/isdata/common/wql443/Thesis_2019/",60)
-
-
-#bamfile,bamname,overlap,savedir,mapQ
-bamfile = ps.AlignmentFile("/isdata/common/wql443/Thesis_2019/Analysis/Samples/3.6samples/BC09/contamination.bam","rb")
-
-#for read in bamfile.fetch(">NZ_CP013114.1_S_equorum", None, None):
-#    print(read.query_name)
-
-Bedfile = pybedtools.example_bedtool("/isdata/common/wql443/Thesis_2019/Analysis/Samples/3.6samples/BC09/contamination.bam")
-
-Cov = Bedfile.genome_coverage(bg=True)
-print(Cov)
-Merged = Cov.merge()
-print(Merged)
-
-
-
-        
-for read in bamfile:
-    if read.mapping_quality ==60:
-        if read.cigar[0][0]==4:
-            if read.has_tag("SA"):
-                print(read.)
-
-
-def IS_SA(read,mapQ):
-    if read.cigar[0][0] == 4:
-        if read.has_tag("SA"):
-            if read.mapping_quality >= mapQ:
-                return True
-
-def Prim_dict(bamfile,mapQ,reg,start,end):
-    Prim_dict = {}
-    for read in bamfile.fetch(reg,start,end,multiple_iterators=True):
-        #checks if soft-clipped
-        if IS_SA(read,mapQ) == True:
-            pos = ps.AlignedSegment.get_reference_positions(read)
-
-            #creates dict with key being read_id and value being read ref positions
-            Prim_dict[read.query_name] = [pos[0],pos[-1]]
-    return Prim_dict
-def IS_supp(read,mapQ):
-    if read.is_supplementary == True:
-        if read.mapping_quality >= mapQ:
-            return True
-"""
