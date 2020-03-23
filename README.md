@@ -37,3 +37,11 @@ minimap2 -t 8 -ax map-ont --secondary=no hg19.25chr.mmi read_file.fastq | samtoo
 bedtools genomecov -bg -ibam BC09_39w/BC09_39.aln_hg19.bam | bedtools merge -d 1000 -i stdin | sort -V -k1,1 -k2,2n > BC09_39w/BC09_39_1000_cov.bed
 ~~~ 
 
+## STEP 4 - Run NanoCicle
+
+## STEP 5 - After Analysis
+### Jaccard Index
+calculating jaccard index for each individual circle compared to the estimated region with coverage
+~~~bash
+bedtools intersect -wao -a BC02_Simple_circles_1000.bed -b ../BC02_1000_cov.bed | head -10 | awk -v OFS='\t' '{print $1,$2,$3,($4/((($3-$2)+($10-$9))-$4))}'
+~~~
