@@ -19,7 +19,8 @@ Use fastq-stats to obtain information regarding the sequences
 
 ### creating index
 ~~~~bash
-minimap2 -t 6 -x map-ont -d GRCh38.mmi GRCh38.fa 
+minimap2 -t 6 -x map-ont -d GRCh37.mmi GRCh37.fa
+minimap2 -t 6 -x map-ont -d hg19.mmi hg19.fa
 ~~~~
 
 ### Alignment
