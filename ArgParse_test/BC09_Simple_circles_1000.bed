@@ -1,0 +1,9 @@
+chr2	21066042	21068385	2343	1	low_conf	BC09_simple_circ_1
+chr4	74906306	74913383	7077	2	conf	BC09_simple_circ_2
+chr4	180103027	180107579	4552	1	low_conf	BC09_simple_circ_3
+chr5	23758451	23768886	10435	13	conf	BC09_simple_circ_4
+chr13	66470916	66471623	707	1	low_conf	BC09_simple_circ_5
+chr13	69039393	69050892	11499	12	conf	BC09_simple_circ_6
+chr13	98571756	98576729	4973	1	low_conf	BC09_simple_circ_7
+chrM	2397	14935	12538	4	conf	BC09_simple_circ_8
+chrX	65697524	65699424	1900	1	low_conf	BC09_simple_circ_9

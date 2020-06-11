@@ -219,6 +219,7 @@ def Single_coord(bamfile,mapQ,reg,start,end):
         occ1,start_freq = most_frequent(start,0)
         print("occurence,",occ1,"start",start_freq)
         occ2,end_freq = most_frequent(end,1)
+        print("occurence,", occ2, "start", end_freq)
         if occ1 and occ2 == 1:
             reads = []
             chr = [reg]
@@ -683,12 +684,14 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
         Bed_reads.saveas("{0}Complex_reads_1000.bed".format(str(savedir)))
 
 
-ID = "BC08"
-dir = "/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/2.8samples/{0}/".format(ID)
+#aln_hg19_Qiagen, Qiagen_1000_cov.bed
+ID = "HS45"
+samples = "5.0samples"
+dir = "/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/{0}/{1}/".format(samples,ID)
 bamfile = ps.AlignmentFile(dir+"{0}.aln_hg19.bam".format(ID),"rb")
+FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/{0}/{1}/{1}_1000_cov.bed".format(samples,ID),bamfile,
+     "{0}.aln_hg19.bam".format(ID),dir,60)
 
-#FULL("/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/{0}_1000_cov.bed".format(ID),bamfile,"{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/Thesis_2019/Analysis/Samples/2.8samples/{0}/Identified_circles/{0}_".format(ID),60)
-
-FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/2.8samples/{0}/{0}_1000_cov.bed".format(ID),bamfile,
-     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)
-
+#(file_name,bamfile,bamname,savedir,mapQ)
+#FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/5.0samples/HS45/HS45_1000_cov.bed",bamfile,
+#     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)

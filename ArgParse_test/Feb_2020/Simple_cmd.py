@@ -10,8 +10,7 @@ print("Imports the simple script")
 
 class Simple_circ:
     #Command 1
-    def __init__(self, region, bamfile,output,MapQ):
-        self.region = region
+    def __init__(self, bamfile,output,MapQ):
         self.bamfile = bamfile
         self.output = output
         self.MapQ = MapQ
@@ -27,8 +26,7 @@ class Simple_circ:
 
         for read in read_file.fetch():
             if counter == 10:
-                #return Pos_dict
-                print("pos_Dict", Pos_dict)
+                return Pos_dict
                 break
 
             if Utils.IS_SA(read, self.MapQ) == True:
@@ -150,3 +148,69 @@ class Simple_circ:
         return reduce_dic
 
 if __name__ == '__main__':
+    from pprint import pprint
+    from itertools import groupby
+
+
+    def mapper(d, overlap=1000):
+        """Each chromsomal coordinate must be interrogated
+        to determine if it is within +/-overlap of any other
+
+        Range within any other    Original Dictionary     Transcript
+        value will match          key and chromosome      element from the list
+        ------------------------  ----------------------  ----------
+        (el-overlap, el+overlap), (dict-key, chromosome), el)
+        """
+        for key, ch in d.items():
+            for el in ch[1:]:
+                yield ((el - overlap, el + overlap), (key, ch[0]), el)
+
+
+    def sorted_mapper(d, overlap=1000):
+        """
+        Simply sort the mapper data by its first element
+        """
+        for r in sorted(mapper(d, overlap), key=lambda x: int(x[2][3:])):
+            yield r
+
+    a = [((19009495, 19011495), ('59860e12', 'chr10'), 43),((19009495, 19011495), ('b4f70162', 'chr2'), 23)]
+    print("test")
+    print([i[0] for i in a])
+    print([i[2] for i in a])
+    print([i[1][1][3:] for i in a])
+    exit()
+    print(sorted(a, key = lambda  x : int(x[2][3:])))
+    lol = [((19009495, 19011495), ('59860e12', 'chr10'), 'chr10'),
+ ((19009495, 19011495), ('b4f70162', 'chr10'), 'chr10'),
+ ((19009499, 19011499), ('c0ca6bbd', 'chr10'), 'chr10'),
+ ((19009502, 19011502), ('22ec4a10', 'chr10'), 'chr10'),
+ ((19009507, 19011507), ('4691e064', 'chr10'), 'chr10'),
+ ((19009805, 19011805), ('8acd93e4', 'chr10'), 'chr10'),
+ ((19012260, 19014260), ('ed79dc24', 'chr12'), 'chr12'),
+ ((19012728, 19014728), ('8acd93e4', 'chr10'), 'chr10'),
+ ((19013064, 19015064), ('59860e12', 'chr10'), 'chr10'),
+ ((19013590, 19015590), ('59860e12', 'chr10'), 'chr10'),
+ ((19013641, 19015641), ('22ec4a10', 'chr10'), 'chr10'),
+ ((19013658, 19015658), ('b4f70162', 'chr10'), 'chr10'),
+ ((19013666, 19015666), ('4691e064', 'chr10'), 'chr10'),
+ ((19013667, 19015667), ('ed79dc24', 'chr12'), 'chr12'),
+ ((19013672, 19015672), ('c0ca6bbd', 'chr10'), 'chr10')]
+    print(sorted(lol, key=lambda x: int(x[2][3:])))
+    exit()
+    First_dict = {'59860e12': ['chr10', 19010495, 19014590, 19014064],
+                  'b4f70162': ['chr10', 19010495, 19014658],
+                  '22ec4a10': ['chr10', 19010502, 19014641],
+                  '4691e064': ['chr10', 19010507, 19014666],
+                  '8acd93e4': ['chr10', 19010805, 19013728],
+                  'c0ca6bbd': ['chr10', 19010499, 19014672],
+                  'ed79dc24': ['chr12', 19013260, 19014667]}
+
+    #pprint(sorted(mapper(First_dict)))
+    #pprint(sorted(sorted_mapper(First_dict)))
+    p1 = sorted(mapper(First_dict,1000))
+    p2 = sorted(sorted_mapper(First_dict,1000))
+    pprint(p1)
+"""
+Circ_class=Simple_circ("/isdata/common/wql443/NanoCircle/BC02.aln_hg19.bam","lol",60)
+    dict = Circ_class.Circ_possible()
+"""

@@ -46,7 +46,7 @@ class NanoCircle:
             self.parser.print_help() # prints the help page immediately, but then when using -h option nothing appears
             # Ideally both would work.
         else:
-            # Hard coding it so when givin -h it actually prints the hellp message
+            # Hard coding it so when giving -h it actually prints the hellp message
             if sys.argv[1] == "-h" or sys.argv[1] == "--help":
                 self.parser.print_help()
 
@@ -71,8 +71,8 @@ class NanoCircle:
                 import Simple_cmd as Sim
 
                 # passes the loaded data into the Simple_cmd script
-                Class_object = Sim.Simple_circ(self.args.input,self.args.output,self.args.mapq)
-                test = Class_object.Reads()
+                Class_object = Sim.Simple_circ(self.args.input,self.args.ibam,self.args.output,self.args.mapq)
+                test = Class_object.reduce_end_coords()
 
             elif sys.argv[1] == "Chimeric":
                 print("Chimeric works")
@@ -122,7 +122,8 @@ class NanoCircle:
         optional = parser.add_argument_group('optional arguments')
 
         # required arguments
-        required.add_argument("-i", "--input",required=True, metavar="", help='Tab seperated potential regions') #hvad med
+        required.add_argument("-i", "--input",required=True, metavar="", help='Tab seperated potential regions')
+        required.add_argument("-bam", "--ibam", required=True, metavar="", help='bamfile')
         required.add_argument("-o", "--output",required=True, metavar="", help='Tab seperated identified circles')
 
         # optional arguments
