@@ -30,7 +30,6 @@ class Read_Filter:
         Filters the reads, based on the cigar operation, read tag and read quality given to the class
         :return: List with Pysam objects of the reads
         """
-        #file=self.SamBamParser()
         file = Utils.SamBamParser(self.bamfile)
 
         #creates alignment files, with the different reads seperated
@@ -46,20 +45,31 @@ class Read_Filter:
                     # With prim pointing to supp, and supp pointing back to prim with "SA" tag
                     if read.has_tag("SA"):
                         Tag_full = read.get_tag("SA").split(';')[:-1]
+                        # creating a nested list, with each tag elem as list elem
                         Tag_elem = [elem.split(',') for elem in Tag_full]
 
-                        if len(Tag_elem) == 1 and read.reference_name == Tag_elem[0][0]:
-                            ps_simple.write(read)
-                        else:
+                        if len(Tag_elem) == 1:
+                            # ensures the supp is aligning to same chromosome
+                            if read.reference_name == str(Tag_elem[0][0]):
+                                print("SIMPLE", read.reference_name, Tag_elem[0][0],
+                                      Tag_elem)
+                                ps_simple.write(read)
+                            elif read.reference_name != str(Tag_elem[0][0]):
+                                ps_chimeric.write(read)
+
+                        #multiple supp align
+                        elif len(Tag_elem) > 1:
                             # if the SA tag have several alignments, it takes the unique set #set()
                             # of every first element of the tag elem  list(zip(*Tag_elem))[0]
-                            chr = set(list(zip(*Tag_elem))[0])
-
+                            chr = list(set(list(zip(*Tag_elem))[0]))
                             # if the len of the unique is 1 we assume its a simple with multiple SA
                                 # think about chimeric which might just be two regions from same chromomsome
                                     # for another time
-                            if len(chr) == 1:
+                            #print(chr)
+                            #print(len(chr))
+                            if len(chr) == 1 and str(chr[0]) == read.reference_name:
                                 ps_simple.write(read)
+                                #print("SIMPLE", read.reference_name, Tag_elem)
                             #Otherwise chimeric
                             else:
                                 ps_chimeric.write(read)

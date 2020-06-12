@@ -72,7 +72,7 @@ class NanoCircle:
 
                 # passes the loaded data into the Simple_cmd script
                 Class_object = Sim.Simple_circ(self.args.input,self.args.ibam,self.args.output,self.args.mapq)
-                test = Class_object.reduce_end_coords()
+                test = Class_object.Region()
 
             elif sys.argv[1] == "Chimeric":
                 print("Chimeric works")

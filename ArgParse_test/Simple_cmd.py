@@ -10,143 +10,131 @@ print("Imports the simple script")
 
 class Simple_circ:
     #Command 1
-    def __init__(self, region, bamfile,output,MapQ):
+    def __init__(self,region,bamfile,output,MapQ):
         self.region = region
         self.bamfile = bamfile
         self.output = output
         self.MapQ = MapQ
 
-    def Read_pos(self):
-        """
-        Extracts the coordinates of the primary position and possibly multiple coordinates of the supplementary position.
-        :return: dictionary {chr, [prim_start,prim_end], [supp_start1,supp_end1,supp_start2,supp_end2]}
-        """
-        read_file = Utils.SamBamParser(self.bamfile)
+    def Read_pos(self,bamfile,MapQ,reg,start,end):
+        """Creates a dictionary of the primary alignments for the soft-clipped reads"""
         Pos_dict = {}
-        counter = 0
 
-        for read in read_file.fetch():
-            if counter == 10:
-                #return Pos_dict
-                print("pos_Dict", Pos_dict)
-                break
+        Read_File = Utils.SamBamParser(bamfile)
 
-            if Utils.IS_SA(read, self.MapQ) == True:
-                #primary pos
-                prim_chr = read.reference_name
-                prim_pos = [int(read.reference_start), int(read.reference_end)]
+        for read in Read_File.fetch(reg, start, end, multiple_iterators=True):
+            # checks if soft-clipped
+            if Utils.IS_SA(read,MapQ) == True:
+                # primary alignment
+                prim_chr = reg
+                #read.reference_end moves one past the last aligned residue
+                prim_pos = [int(read.reference_start), int(read.reference_end)-1]
 
-                #supplementary alignment
+                # supplementary alignment
                 Tag = read.get_tag("SA").split(',')
 
-                # single supp alignment
+                # a single supplementary alignment
                 if len(Tag) == 6:
+                    #print("Single", read.query_name)
+                    #print("reg", reg, start, end)
+                    #print("TAG",Tag)
+                    #print("Prim",prim_pos)
                     if int(Tag[4]) >= self.MapQ:
-                        counter += 1
-                        supp_pos = [int(Tag[1]),int(Tag[1])+Utils.CIGAR_len(Tag[3])]
-                        Pos_dict[read.query_name] = [prim_chr,
-                                                     prim_pos,
-                                                     supp_pos]
-                # Multiple supp alignments
-                else:
-                    counter += 1
+                        supp_pos = [int(Tag[1]), int(Tag[1]) + Utils.CIGAR_len(Tag[3])]
 
-                    MapQ_val = Tag[4::5] # possible mapq
-                    Start_possible = Tag[1::5] # possible start coordinates
+                        if Utils.Right_dir(prim_pos, supp_pos) == True:
+                            Pos_dict[read.query_name] = [prim_pos[0], supp_pos[-1]]
+
+                            # From right to left
+                        if Utils.Left_dir(prim_pos, supp_pos) == True:
+                            Pos_dict[read.query_name] = [supp_pos[0], prim_pos[-1]]
+
+                            # From left to right once
+                        if Utils.Right_circ_dir(prim_pos, supp_pos) == True:
+                            Pos_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
+
+                            # From right to left once
+                        if Utils.Left_circ_dir(prim_pos, supp_pos) == True:
+                            Pos_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
+
+                else:
+                    MapQ_val = Tag[4::5]
+                    Supp_start = Tag[1::5]
+
 
                     mult_coord = []
 
-                    #for i in range for same index of the mapQ, start pos, cigarstring
                     for i in range(len(MapQ_val)):
-                        if int(MapQ_val[i]) >= self.MapQ: # if the different mapQ == 60
+                        if int(MapQ_val[i]) >= self.MapQ:
 
-                            #creates a list of list, with each sublist being the coordinate interval
-                            mult_coord.append([int(Start_possible[i]),
-                                               int(Start_possible[i])+Utils.CIGAR_len(Tag[3::5][i])])
+                            #creates a list of list, with all possible supp coordinats
+                            mult_coord.append([int(Supp_start[i]),
+                                               int(Supp_start[i]) + Utils.CIGAR_len(Tag[3::5][i])])
 
-                    #flatten the entire mult_coord list of list, into a single list
-                    supp_pos =  list(np.array(mult_coord).flat)
+                    #takes the first set of supp coordinates
+                    supp_pos = mult_coord[0]
+                    print("reg", reg, start, end)
+                    print("multiple", read.query_name)
+                    print("TAG", Tag)
+                    print("prim", prim_pos)
+                    print("all supp",mult_coord)
+                    print("First supp",supp_pos)
+                    # Creates a possible coordinate set comparing the primary and the first supp alignment
+                    if Utils.Right_dir(prim_pos, supp_pos) == True:
+                        Pos_dict[read.query_name] = [prim_pos[0], supp_pos[-1]]
+                        print("left1.1")
+                    if Utils.Left_dir(prim_pos, supp_pos) == True:
+                        Pos_dict[read.query_name] = [supp_pos[0], prim_pos[-1]]
+                        print("right.1")
+                    if Utils.Right_circ_dir(prim_pos, supp_pos) == True:
+                        print("full1.1")
+                        Pos_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
+                    if Utils.Left_circ_dir(prim_pos, supp_pos) == True:
+                        print("full1.2")
+                        Pos_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
 
-                    Pos_dict[read.query_name] = [Tag[0], prim_pos, supp_pos]
 
+                    print("TEST",Pos_dict[read.query_name])
+
+
+                    # Creates the final coordinate set by comparing the coordinate set from above using primary and
+                    # first supp, and appends the additional supplementary.
+
+                    new_coord = Pos_dict[read.query_name]
+                    for supp_i in mult_coord[1:]:
+                        if Utils.Right_dir(new_coord, supp_i) == True:
+                            if supp_i[-1] not in Pos_dict[read.query_name]:
+                                Pos_dict[read.query_name].append(supp_i[-1])
+                                print("left2.1")
+                            # From right to left
+                        if Utils.Left_dir(new_coord, supp_i) == True:
+                            if new_coord[-1] not in Pos_dict[read.query_name]:
+                                Pos_dict[read.query_name].append(new_coord[-1])
+
+                            # From left to right once
+                        if Utils.Right_circ_dir(new_coord, supp_i) == True:
+                            if new_coord[-1] not in Pos_dict[read.query_name]:
+                                Pos_dict[read.query_name].append(new_coord[-1])
+                            print("full2.1")
+                            # From right to left once
+                        if Utils.Left_circ_dir(new_coord, supp_i) == True:
+                            if new_coord[-1] not in Pos_dict[read.query_name]:
+                                Pos_dict[read.query_name].append(new_coord[-1])
+                        print("TEST2", Pos_dict[read.query_name])
+
+                    print("-----------------")
         return Pos_dict
 
-    def flatten(self,irreg_list):
-        """
-        :param irreg_list: list of irregular list, e.g.: [A,[B,C],D,[E,F,G]]
-        :return: flattens the entire list, e.g. [A,B,C,D,E,F,G]
-        """
-        for i in irreg_list:
-            if isinstance(i, (list, tuple)):
-                for j in self.flatten(i):
-                    yield j
-            else:
-                yield i
-
-    def Circ_possible(self):
-        """
-        Orders the coordinates of the reads from Read_pos according to the physical location (upstrean, downstream).
-        :return: dictionary { read_ID : chr, start1, start2, end1, end2, end3}
-        """
-        Pos_dict = self.Read_pos()
-        Circ_pos = {}
-
-        #determine if the prim pos is upstream or downstream of supp pos
-        for read_ID,coord_pos in Pos_dict.items():
-            # primary read upstream of supp align
-            if min(coord_pos[1]) <= min(coord_pos[2]) and max(coord_pos[1]) <= max(coord_pos[2]):
-                dic_val = [coord_pos[0],
-                           int(min(coord_pos[1])), # minimum prim coord (start coord)
-                           coord_pos[2][1::2]]     # every second supp coord from index 1 (possible end coord)
-
-                # flattens the irrecular list (dic_val) with structure [chr,coord,[coord1,coord2]]
-                Circ_pos[read_ID] = list(self.flatten(dic_val))
-
-            # primary read spanning entire circle, but weird supp is inside interval
-            if min(coord_pos[1]) <= min(coord_pos[2]) and max(coord_pos[1]) >= max(coord_pos[2]):
-                dic_val = [coord_pos[0],
-                           int(min(coord_pos[1])),
-                           int(max(coord_pos[1]))]
-
-                Circ_pos[read_ID] = list(self.flatten(dic_val))
-
-            # supplementary align upstream of prim align
-            # i could use the strategy of keeping the multiple supp alignments for start coord
-            if min(coord_pos[2]) <= min(coord_pos[1]) and max(coord_pos[2]) <= max(coord_pos[1]):
-                dic_val = [coord_pos[0],
-                           coord_pos[2][0::2], #every second supp coord from index 0 (possible start coord)
-                           int(max(coord_pos[1]))]
-                Circ_pos[read_ID] = list(self.flatten(dic_val))
-                #Here there are several possible start coordinates case
-
-
-            # supplementary read spanning entire circle, but weird prim is inside interval
-            if min(coord_pos[2]) <= min(coord_pos[1]) and max(coord_pos[2]) >= max(coord_pos[1]):
-                dic_val = [coord_pos[0],
-                           int(min(coord_pos[2])),
-                           int(max(coord_pos[2]))]
-                Circ_pos[read_ID] = list(self.flatten(dic_val))
-        print("Circ_pos",Circ_pos)
-        return Circ_pos
-
-    def reduce_end_coords(self):
-        """ Reduce the number of end coordinates for those reads with several
-        supplementary alignments by comparing the position to the other end positions"""
-
-        Coord = self.Circ_possible()
-        # Counter of second list element for 2-element lists.
-        # I dont have several primary so there is no need for counting them
-        count = Counter(v[1] for v in Coord.values() if len(v) == 2)
-        # Result dict
-        reduce_dic = {}
-        # Iterate data entries
-        for k, v in Coord.items():
-            # Modify lists longer than two with at least one element in the counter
-            if len(v) > 2 and any(elem in count for elem in v[1:]):
-                # Replace list with first element and following element with max count
-                v = [v[0], max(v[1:], key=lambda elem: count.get(elem, 0))]
-            # Add to result
-            reduce_dic[k] = v
-        return reduce_dic
+    def Region(self):
+        with open(self.region) as f:
+            for line in f:
+                region = line.strip().split()
+                chr = region[0]
+                start = region[1]
+                end = region[2]
+                pos_dict = self.Read_pos(self.bamfile,self.MapQ,str(chr),int(start), int(end))
+                #print(pos_dict)
+                #print("-------------------------------")
 
 if __name__ == '__main__':
+    print("lol")
