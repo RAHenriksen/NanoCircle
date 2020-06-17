@@ -37,19 +37,24 @@ minimap2 -t 8 -ax map-ont --secondary=no hg19.25chr.mmi read_file.fastq | samtoo
 bedtools genomecov -bg -ibam barcode.aln_hg19.bam | bedtools merge -d 1000 -i stdin | sort -V -k1,1 -k2,2n > barcode_1000_cov.bed
 ~~~ 
 
-## STEP 4 - Run NanoCicle
-### Classify the soft-clipped read supporting chimeric eccDNA and soft-clipped supporting simple eccDNA
+# Running NanoCircle to identify the eccDNA coordinates
+## STEP 4 - Classify the soft-clipped read supporting chimeric eccDNA and soft-clipped supporting simple eccDNA
 ~~~bash
 python NanoCircle_arg.py Classify -i BC09_hg19.bam
 ~~~
 Which will be saved in a folder temp_reads containing both simple and complex reads in .bam format. 
 ### Create a .bai index for the read .bam
 ~~~bash
-samtools index temp_reads/*.bam
+samtools index temp_reads/Simple_reads.bam
+samtools index temp_reads/Chimeric_reads.bam
 ~~~
-### Identify Simple eccDNA using the coverage file and classified reads
+## STEP 5 - Identify Simple eccDNA using the coverage file and classified reads
 ~~~bash
 python NanoCircle_arg.py Simple -i barcode_1000_cov.bed --ibam temp_reads/Simple_reads.bam -q 60 -o barcode_circles.bed
+~~~
+## STEP 6 - Identify Chimeric eccDNA using the coverage file and classified reads
+~~~bash
+python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_circles.bed
 ~~~
 ### Classify the soft-clipped read supporting chimeric eccDNA and soft-clipped supporting simple eccDNA
 ## STEP 5 - After Analysis
