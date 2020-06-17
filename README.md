@@ -38,7 +38,7 @@ bedtools genomecov -bg -ibam barcode.aln_hg19.bam | bedtools merge -d 1000 -i st
 ~~~ 
 
 # Running NanoCircle to identify the eccDNA coordinates
-## STEP 4 - Classify the soft-clipped read supporting chimeric eccDNA and soft-clipped supporting simple eccDNA
+## STEP 4 - Classify the soft-clipped read supporting Simple eccDNA and soft-clipped supporting Chimeric eccDNA
 ~~~bash
 python NanoCircle_arg.py Classify -i BC09_hg19.bam
 ~~~
@@ -50,15 +50,14 @@ samtools index temp_reads/Chimeric_reads.bam
 ~~~
 ## STEP 5 - Identify Simple eccDNA using the coverage file and classified reads
 ~~~bash
-python NanoCircle_arg.py Simple -i barcode_1000_cov.bed --ibam temp_reads/Simple_reads.bam -q 60 -o barcode_circles.bed
+python NanoCircle_arg.py Simple -i barcode_1000_cov.bed --ibam temp_reads/Simple_reads.bam -q 60 -o barcode_Simple_circles.bed
 ~~~
 ## STEP 6 - Identify Chimeric eccDNA using the coverage file and classified reads
 ~~~bash
-python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_circles.bed
+python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
 ~~~
-### Classify the soft-clipped read supporting chimeric eccDNA and soft-clipped supporting simple eccDNA
-## STEP 5 - After Analysis
-### Jaccard Index
+# After Analysis - Ideas not yet incorporated
+## STEP 7 - Jaccard Index
 calculating jaccard index for each individual circle compared to the estimated region with coverage
 ~~~bash
 bedtools intersect -wao -a barcode_Simple_circles_1000.bed -b barcode_1000_cov.bed | head -10 | awk -v OFS='\t' '{print $1,$2,$3,($4/((($3-$2)+($10-$9))-$4))}'
