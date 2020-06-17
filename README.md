@@ -56,9 +56,18 @@ python NanoCircle_arg.py Simple -i barcode_1000_cov.bed --ibam temp_reads/Simple
 ~~~bash
 python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
 ~~~
-# After Analysis - Ideas not yet incorporated
-## STEP 7 - Jaccard Index
+The output being a bed file with possible configurations of several chimeric eccDNA, since the identification extract reads originating from specific regions.
+# Ideas not yet incorporated
+## STEP 7 - Merge Chimeric eccDNA configurations using the coverage file and classified reads
+~~~bash
+python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
+~~~
+The output being a bed file with possible configurations of several chimeric eccDNA, since the identification extract reads originating from specific regions.
+
+## STEP 8 - Jaccard Index
 calculating jaccard index for each individual circle compared to the estimated region with coverage
 ~~~bash
 bedtools intersect -wao -a barcode_Simple_circles_1000.bed -b barcode_1000_cov.bed | head -10 | awk -v OFS='\t' '{print $1,$2,$3,($4/((($3-$2)+($10-$9))-$4))}'
 ~~~
+To check if there might be a small region in between the coordinates without any coverage ?
+Or just use mean coverage
