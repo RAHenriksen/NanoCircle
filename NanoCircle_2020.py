@@ -308,7 +308,7 @@ def Complex(bamfile,mapQ,reg, start, end):
     """ Check for potential complex circles by reads aligning across the genome. Afterwards it returns the simple circles
      with 1 set of coordinates (type I) several set of coordinates (type II) and the complex circles (type III)"""
     Type,Sing_dict = Single_coord(bamfile,mapQ,reg,start,end)
-
+    print("SINFG",Sing_dict)
     Complex_dict = {}
     Total_coord = []
     Total_chr = []
@@ -683,7 +683,7 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
         Bed_reads = bt.BedTool.from_dataframe(resulting_read)
         Bed_reads.saveas("{0}Complex_reads_1000.bed".format(str(savedir)))
 
-
+"""
 #aln_hg19_Qiagen, Qiagen_1000_cov.bed
 ID = "HS45"
 samples = "5.0samples"
@@ -694,4 +694,8 @@ FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/{0}/{1}/{1}_100
 
 #(file_name,bamfile,bamname,savedir,mapQ)
 #FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/5.0samples/HS45/HS45_1000_cov.bed",bamfile,
-#     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)
+#     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)"""
+
+bamfile = ps.AlignmentFile("/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/chr1_243928620_243938331_region.bam","rb")
+FULL("/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/Cov.bed",bamfile,
+     "chr1_243928620_243938331_region.bam","/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/",60)

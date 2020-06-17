@@ -42,6 +42,12 @@ start_dict4 = {'3c0df367-ce16-4ea2-b8fd-b3d40c1a630f': {'start': [2397, 2765, 32
 
 a = list(start_dict3['Key1'].values())
 
+for k,v in start_dict1.items():
+    if any(i == 243928620 for i in v['start']):
+        print("TETET",k,v)
+
+exit()
+
 
 def Reduce_coord(dict,pos):
     pos_point = []
@@ -167,3 +173,9 @@ print("_-------------")
 type,final_dict = Single_coord(start_dict4)
 print(type,final_dict)
 print("_-------------")
+
+a = [2,3,45]
+b = [3,4,5]
+
+for i in a and b:
+    print(i)

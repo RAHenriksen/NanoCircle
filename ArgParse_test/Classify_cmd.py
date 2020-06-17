@@ -37,7 +37,7 @@ class Read_Filter:
         ps_chimeric = ps.AlignmentFile("temp_reads/Chimeric_reads.bam", "wb", template=file)
 
         for read in file.fetch():
-            # filtering on the cigar string operation, S = 4, H = 5
+            # filtering on the cigar string operation, S = 4
             if read.cigartuples[0][0] == 4 or read.cigartuples[-1][0] == 4:
                 # filtering on mapping quality
                 if read.mapping_quality >= self.MapQ:
