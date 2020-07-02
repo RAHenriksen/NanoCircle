@@ -71,3 +71,8 @@ bedtools intersect -wao -a barcode_Simple_circles_1000.bed -b barcode_1000_cov.b
 ~~~
 To check if there might be a small region in between the coordinates without any coverage ?
 Or just use mean coverage
+
+# Different unix command useful for data preparation, analysis and test
+~~~bash
+samtools view -h BC10.aln_hg19.bam |grep -v '>N'| grep -v '>A' |samtools view -Sbo BC10.bam -
+~~~
