@@ -21,8 +21,9 @@ import Utils
 
 class Read_Filter:
     """ Class which extract alignment position information for filtered and unfiltered reads"""
-    def __init__(self, bamfile,MapQ):
+    def __init__(self, bamfile,dir,MapQ):
         self.bamfile = bamfile
+        self.dir = dir
         self.MapQ = MapQ
 
     def Filter(self):
@@ -33,8 +34,8 @@ class Read_Filter:
         file = Utils.SamBamParser(self.bamfile)
 
         #creates alignment files, with the different reads seperated
-        ps_simple = ps.AlignmentFile("temp_reads/Simple_reads.bam", "wb", template=file)
-        ps_chimeric = ps.AlignmentFile("temp_reads/Chimeric_reads.bam", "wb", template=file)
+        ps_simple = ps.AlignmentFile("{0}/Simple_reads.bam".format(str(self.dir)), "wb", template=file)
+        ps_chimeric = ps.AlignmentFile("{0}/Chimeric_reads.bam".format(str(self.dir)), "wb", template=file)
 
         for read in file.fetch():
             # filtering on the cigar string operation, S = 4
@@ -48,39 +49,88 @@ class Read_Filter:
                         # creating a nested list, with each tag elem as list elem
                         Tag_elem = [elem.split(',') for elem in Tag_full]
 
+                        Prim_pos = ps.AlignedSegment.get_reference_positions(read)
+
+                        #print(" TAG ELEM",read.query_name,read.reference_name,Prim_pos[0],Prim_pos[-1],Tag_elem)
+
+                        # one supp alignment
                         if len(Tag_elem) == 1:
                             # ensures the supp is aligning to same chromosome
                             if read.reference_name == str(Tag_elem[0][0]):
-                                print("SIMPLE", read.reference_name, Tag_elem[0][0],
-                                      Tag_elem)
-                                ps_simple.write(read)
-                            elif read.reference_name != str(Tag_elem[0][0]):
-                                ps_chimeric.write(read)
+                                # Handle the reads with dist above 100 k as chim with single supp, but it could in theory be simple
+                                if abs(Prim_pos[0]-int(Tag_elem[0][1])) > 100000 and \
+                                        abs(Prim_pos[1]-(int(Tag_elem[0][1])+Utils.CIGAR_len(Tag_elem[0][3]))) > 100000:
+                                    ps_chimeric.write(read)
 
-                        #multiple supp align
-                        elif len(Tag_elem) > 1:
-                            # if the SA tag have several alignments, it takes the unique set #set()
-                            # of every first element of the tag elem  list(zip(*Tag_elem))[0]
-                            chr = list(set(list(zip(*Tag_elem))[0]))
-                            # if the len of the unique is 1 we assume its a simple with multiple SA
-                                # think about chimeric which might just be two regions from same chromomsome
-                                    # for another time
-                            #print(chr)
-                            #print(len(chr))
-                            if len(chr) == 1 and str(chr[0]) == read.reference_name:
-                                ps_simple.write(read)
-                                #print("SIMPLE", read.reference_name, Tag_elem)
-                            #Otherwise chimeric
+                                else:
+                                    ps_simple.write(read)
+                            #single supp to another chr
                             else:
                                 ps_chimeric.write(read)
-                                #Chimeric_reads.append(read)
+
+                        # multiple supp align
+                        elif len(Tag_elem) > 1:
+                            #print(" Chim tag", read.query_name,read.reference_name, Tag_elem)
+
+                            # if the SA tag have several alignments, it takes the unique set #set() of
+                            # the given elements with zip
+                            Prim_interval = [Prim_pos[0] - 50000, Prim_pos[1] + 50000]
+
+                            chr = list(set(list(zip(*Tag_elem))[0]))
+                            pos_start = list(list(zip(*Tag_elem))[1])
+                            #maps cigar list on all cigar strings found with zip*
+                            read_len = list(map(Utils.CIGAR_len,list(list(zip(*Tag_elem))[3])))
+                            pos_interval = []
+
+                            for i in range(len(pos_start)):
+                                pos_interval.append(int(pos_start[i]))
+                                pos_interval.append(int(pos_start[i]) + read_len[i])
+
+                            # if the len of the unique set of chr is 1 its the same chromosome for all the SA
+                            if len(chr) == 1:
+                                # if all supp is the same chromosome as prim
+                                if read.reference_name == str(chr[0]):
+                                    #due to the distance, if some supp alignment are outside the +- 50 k interval of prim its chimeric
+                                    if any(e < Prim_interval[0] or Prim_interval[1] < e for e in pos_interval):
+                                        ps_chimeric.write(read)
+                                    else:
+                                        ps_simple.write(read)
+
+                                # if all supp is to another chrom
+                                else:
+                                    ps_chimeric.write(read)
+
+                            #multiple different chr
+                            else:
+                                ps_chimeric.write(read)
 
         ps_simple.close()
         ps_chimeric.close()
 
 
+
+
 if __name__ == '__main__':
     #print(Merged_dict)
-
+    """
     Read_class=Read_Filter("/isdata/common/wql443/NanoCircle/BC02.aln_hg19.bam",30)
     Read_class.Filter()
+    """
+
+    prim_pos = [45788715,45790577]
+    prim_interval = [prim_pos[0]-50000,prim_pos[1]+50000]
+    Supp_start = [45788851, 45788705, 45788706, 54265141, 54265145, 54265621, 54265141]
+    Supp_pos = []
+
+    print(any(prim_interval[0] < e < prim_interval[1] for e in Supp_start))
+    print(any(e < prim_interval[0] or prim_interval[1] < e for e in Supp_start))
+
+    a = ['45788851', '45788705', '45788706', '54265141', '54265145', '54265621', '54265141']
+    b = [1676, 1762, 1134, 960, 974, 524, 323]
+
+    c= []
+    for i in range(len(a)):
+        c.append(int(a[i]))
+        c.append(int(a[i])+b[i])
+    print(c)
+    a = [ i for i in a[i]]

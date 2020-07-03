@@ -19,7 +19,8 @@ class NanoCircle:
                 
                 Classify     Characterize the different reads into simple or chimeric circle origin 
                 Simple       Identifies simple circular DNA, comprised of a single chromosomal fragment
-                Chimeric     Identifies chimeric circular DNA, comprised of multiple chromosomal fragments''')
+                Chimeric     Identifies chimeric circular DNA, comprised of multiple chromosomal fragments
+                Merge        Merge all potential configuration of chimeric eccDNA identified with Chimeric command ''')
 
         # create subcommands each with their own arguments
         subparsers = self.parser.add_subparsers()
@@ -37,9 +38,15 @@ class NanoCircle:
 
         self.Chimeric = subparsers.add_parser(
             name="Chimeric",
-            description='Identifies chimeric circular DNA (multiple chromosomal fragments)',
+            description='Identifies configurations of chimeric circular DNA (multiple chromosomal fragments)',
             prog="NanoCircle Chimeric",
             usage='''NanoCircle Chimeric [options]''')
+
+        self.Merge = subparsers.add_parser(
+            name="Merge",
+            description='Merge all potential configuration of chimeric eccDNA identified with Chimeric command',
+            prog="NanoCircle Merge",
+            usage='''NanoCircle Merge [options]''')
 
         # no commands
         if len(sys.argv) <= 1:
@@ -57,7 +64,7 @@ class NanoCircle:
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 
                 import Classify_cmd as Classes
-                Class_object = Classes.Read_Filter(self.args.ibam,self.args.mapq)
+                Class_object = Classes.Read_Filter(self.args.ibam,self.args.dir,self.args.mapq)
                 read_files = Class_object.Filter()
 
             elif sys.argv[1] == "Simple":
@@ -81,6 +88,16 @@ class NanoCircle:
 
                 import Chimeric_cmd as Chim
 
+                Class_object = Chim.Chimeric_circ(self.args.input,self.args.ibam,self.args.output,self.args.mapq)
+                Class_object.Region()
+
+            elif sys.argv[1] == "Merge":
+                print("Chimeric works")
+                self.subprogram = self.args_Merge()
+                self.args = self.subprogram.parse_args(sys.argv[2:])
+
+                import Chimeric_cmd as Chim
+
                 Class_object = Chim.Chimeric_circ(self.args.i)
                 Class_object.multiply()
 
@@ -100,7 +117,8 @@ class NanoCircle:
         optional = parser.add_argument_group('optional arguments')
 
         # required arguments
-        required.add_argument("-i", "--ibam",required=True, metavar="", help='Bam file with circle reads')
+        required.add_argument("-b", "--ibam",required=True, metavar="", help='Bam file with circle reads')
+        required.add_argument("-d", "--dir", required=True, metavar="", help='Directory for classified reads')
 
         # optional arguments
         optional.add_argument("-q", "--mapq", metavar="", default=60, type=int, help='Mapping Quality, default 60')
@@ -123,7 +141,7 @@ class NanoCircle:
 
         # required arguments
         required.add_argument("-i", "--input",required=True, metavar="", help='Tab seperated potential regions')
-        required.add_argument("-bam", "--ibam", required=True, metavar="", help='bamfile')
+        required.add_argument("-b", "--ibam", required=True, metavar="", help='bamfile')
         required.add_argument("-o", "--output",required=True, metavar="", help='Tab seperated identified circles')
 
         # optional arguments
@@ -145,13 +163,33 @@ class NanoCircle:
         optional = parser.add_argument_group('optional arguments')
 
         # required arguments
-        required.add_argument("-i", "--input", required=True, metavar="",
-                              help='Tab seperated potential regions')
+        required.add_argument("-i", "--input",required=True, metavar="", help='Tab seperated potential regions')
+        required.add_argument("-b", "--ibam", required=True, metavar="", help='bamfile')
         required.add_argument("-o", "--output", required=True, metavar="",
                               help='Tab seperated identified circles, No. columns corresponds to most complex chimeric circle')
-
         # optional arguments
         optional.add_argument("-q", "--mapq", metavar="", default=60, type=int, help='Mapping Quality, default 60')
+
+        # if no arguments are parsed
+        if len(sys.argv[2:]) == 0:
+            parser.print_help()
+
+        return parser
+
+    def args_Merge(self):
+        """
+        :return: argument parser for the Simple commands
+        """
+        parser = self.Merge
+
+        required = parser.add_argument_group('required arguments')
+
+        # required arguments
+        required.add_argument("-i", "--input", required=True, metavar="",
+                              help='Tab seperated identified chimeric eccDNA configurations')
+        required.add_argument("-o", "--output", required=True, metavar="",
+                              help='Tab seperated merged chimeric eccDNA configurations')
+
 
         # if no arguments are parsed
         if len(sys.argv[2:]) == 0:

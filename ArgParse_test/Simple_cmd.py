@@ -28,7 +28,6 @@ class Simple_circ:
         for read in Read_File.fetch(reg, start, end, multiple_iterators=True):
             # checks if soft-clipped and has a supplementary tag and a mapping quality equal to threshold
             if read.cigar[0][0] == 4 and read.has_tag("SA") and read.mapping_quality >= MapQ:
-                print("-------------------------------")
 
                 #print("READ_NAME",read.query_name, int(read.reference_start), int(read.reference_end)-1)
                 #print(ps.AlignedSegment.get_reference_positions(read)[0],ps.AlignedSegment.get_reference_positions(read)[-1])
@@ -119,8 +118,6 @@ class Simple_circ:
 
     def Reduce_coord(self,pos_dict,pos):
 
-        #bamfile,MapQ,reg,start,end,
-        #pos_dict = self.Read_position(bamfile,MapQ,reg,start,end)
         pos_point = []
         for k, v in pos_dict.items():
             pos_point.extend(v[pos])
@@ -181,11 +178,14 @@ class Simple_circ:
     def Single_coord(self,bamfile,MapQ,reg,start,end):
 
         pos_dict = self.Read_position(bamfile, MapQ, reg, start, end)
-
+        print("lenght",len(pos_dict.keys()),pos_dict)
         # reduce start and end coordinates to those which are most common
         temp_dict = self.Reduce_coord(pos_dict, 'start')
         modify_dict = self.Reduce_coord(temp_dict, 'end')
+        print("lenght reduce start", len(temp_dict.keys()), temp_dict)
+        print("lenght reduce end", len(modify_dict.keys()), modify_dict)
 
+        all_soft =  len(pos_dict.keys())
         # creates a single list with all s tart and end coordinates
         start_list = []
         end_list = []
@@ -196,13 +196,14 @@ class Simple_circ:
         if start_list and end_list != []:
             occ1, start_freq = self.most_frequent(start_list, 0)
             occ2, end_freq = self.most_frequent(end_list, 1)
-
-            if occ1 or occ2 == 1:
+            print("start,end",start_freq,end_freq)
+            if occ1 and occ2 == 1:
                 reads = []
                 chr = [reg]
                 if start_freq < end_freq:
                     new_val = chr + [start_freq, end_freq]
                 else:
+                    print("LLLOLLLLLLLLLLLLLL")
                     new_val = chr + [end_freq, start_freq]
 
                 for k, v in modify_dict.items():
@@ -215,35 +216,35 @@ class Simple_circ:
 
                 if len(list(final_dict.keys())[0]) != 1:
                     type = 1
-                    return type, final_dict
+                    return all_soft,type, final_dict
 
                 else:
                     type = 2
-                    return type, final_dict
+                    return all_soft,type, final_dict
 
             else:
                 type = 2
                 chr = [reg]
                 new_val = chr + [start_freq, end_freq]
                 final_dict = {tuple(sorted(modify_dict.keys())): new_val}
-                return type, final_dict
+                return all_soft,type, final_dict
 
         else:
             type = 0
             # these dicts are empty, and serves to continue as some regions might not create a circle
-            return type, modify_dict
+            return all_soft,type, modify_dict
 
-    def Simple_circ_df(self,Circ_dict, circ_type):
+    def Simple_circ_df(self,Circ_dict, circ_type,soft_no):
         """ returns a dataframe with circular information for the simple circles"""
         df_col = ["Chr", "Start", "End"]
         simple_df = pd.DataFrame.from_dict(Circ_dict, orient='index', columns=df_col)
         simple_df = simple_df.sort_values(by=df_col)
         simple_df['Length'] = simple_df.apply(lambda x: x['End'] - x['Start'], axis=1)
         # add_col = ['Read_No','Read_IDs','Circle_type','Circle_ID']
-        add_col = ['Read_No', 'Circle_type']
+        add_col = ['Read_No', 'Circle_type',"Soft_clip"]
         # convert list of ID's to 1 long string as to insert it as a single column in the df
 
-        add_val = [len(list(Circ_dict.keys())[0]), circ_type]
+        add_val = [len(list(Circ_dict.keys())[0]), circ_type,soft_no]
 
         for i in range(len(add_col)):
             simple_df.insert(loc=len(simple_df.columns), column=add_col[i], value=add_val[i])
@@ -258,22 +259,23 @@ class Simple_circ:
                 chr = region[0]
                 start = region[1]
                 end = region[2]
-
-                circ_type,circle_dict = self.Single_coord(self.bamfile,self.MapQ,str(chr),int(start), int(end))
-
+                print("-------------------------------")
+                print("REGION",str(chr),int(start), int(end))
+                soft_no,circ_type,circle_dict = self.Single_coord(self.bamfile,self.MapQ,str(chr),int(start), int(end))
+                print("modify",circle_dict)
                 if circ_type == 1:
-                    circ_bed = self.Simple_circ_df(circle_dict, "high_conf")
+                    circ_bed = self.Simple_circ_df(circle_dict, "high_conf",soft_no)
                     rows = pd.concat([Simple_circ, circ_bed])
                     Simple_circ = rows
 
                 elif circ_type == 2:
                     if len(list(circle_dict.keys())[0]) > 1:
-                        circ_bed = self.Simple_circ_df(circle_dict, "conf")
+                        circ_bed = self.Simple_circ_df(circle_dict, "conf",soft_no)
                         rows = pd.concat([Simple_circ, circ_bed])
                         Simple_circ = rows
 
                     else:
-                        circ_bed = self.Simple_circ_df(circle_dict, "low_conf")
+                        circ_bed = self.Simple_circ_df(circle_dict, "low_conf",soft_no)
                         rows = pd.concat([Simple_circ, circ_bed])
                         Simple_circ = rows
 
@@ -282,5 +284,5 @@ class Simple_circ:
 
 
 if __name__ == '__main__':
-    print("lol")
+    print("main")
 
