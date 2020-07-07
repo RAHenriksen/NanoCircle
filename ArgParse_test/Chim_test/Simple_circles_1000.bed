@@ -1,0 +1,13 @@
+chr1	14791388	14795753	4365	4	high_conf	BC10_simple_circ_1
+chr3	53989619	53995937	6318	2	conf	BC10_simple_circ_2
+chr3	145743118	145746853	3735	3	conf	BC10_simple_circ_3
+chr4	147156304	147162541	6237	3	conf	BC10_simple_circ_4
+chr5	28841296	28844887	3591	2	conf	BC10_simple_circ_5
+chr7	56392006	56396234	4228	1	low_conf	BC10_simple_circ_6
+chr9	88199656	88201071	1415	1	low_conf	BC10_simple_circ_7
+chr9	88206994	88208940	1946	1	low_conf	BC10_simple_circ_8
+chr11	46826020	46830240	4220	10	high_conf	BC10_simple_circ_9
+chr13	73856740	73859870	3130	1	low_conf	BC10_simple_circ_10
+chr17	3170140	3183864	13724	45	high_conf	BC10_simple_circ_11
+chr18	5121796	5126442	4646	1	low_conf	BC10_simple_circ_12
+chrM	7429	11242	3813	1	low_conf	BC10_simple_circ_13
