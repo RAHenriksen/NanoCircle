@@ -147,14 +147,17 @@ class Chimeric_circ:
         return First
 
     def Circle_Fragment(self, dict):
-        """Creates list with the full region of start and end coordinates (all_start) and list of
-        equal length with the corresponding chromosomes"""
+        #pos_dict = self.Read_position(bamfile, MapQ, reg, start, end)
+        #print("HALLØJ",pos_dict)
         chr_start = []
         all_start = []
 
         chr_end = []
         all_end = []
+
+
         for k1, v1 in dict.items():
+            # print("DICT",test[k1])
             for v2 in dict[k1].values():
                 #Creates a single list with the full regions with start coordinates and end coordinates
                 chr_start.extend(len(v2[1]) * [v2[0]])
@@ -208,38 +211,12 @@ class Chimeric_circ:
         d = {}
         d[tuple(dict.keys())] = []
         for i in range(len(start[::2])):
-            d[tuple(dict.keys())].extend([start[0::2][i], start[1::2][i], end[1::2][i],end[1::2][i]-start[1::2][i]])
-
-        #for i in range(len(start[::2])):
-        #    d[tuple(dict.keys())].extend([start[0::2][i], start[1::2][i], end[1::2][i],end[1::2][i]-start[1::2][i]])
+            d[tuple(dict.keys())].extend([start[0::2][i], start[1::2][i], end[1::2][i]])
 
         return d
 
-    def Circle_dataframe(self,circle_dict,ID):
-        "Creates two dataframes, the first is the fragment information and the second general information"
-
-        df_frag = pd.DataFrame.from_dict(circle_dict, orient='index')
-
-        #The initial columns for the final dataframe, but the fragments can vary for individual chimeric eccDNA
-        df_col = ["Chr", "Start", "End", "Length"]
-        rep = int(len(list(circle_dict.values())[0]) / 4)
-        df_frag.columns = [j + "_" + str(i) for i in range(1, rep + 1) for j in df_col]
-
-        #Always the last four columns of the last dataframe
-        df_general = pd.DataFrame(columns=['Total_len', 'No_fragments', 'No_reads', 'Config_ID'])
-
-        # The sum of all the Length columns giving total length
-        df_general['Total_len'] = df_frag.filter(regex=("Length.*")).sum(axis=1)
-        df_general['No_fragments'] = rep
-        df_general['No_reads'] = len(list(circle_dict.keys())[0])
-        df_general['Config_ID'] = "Chimeric_%d" % (ID)
-
-        return df_frag, df_general
-
     def Region(self):
-        Complex_df = pd.DataFrame()
-        Final_4_df = pd.DataFrame()
-        i = 1
+        Simple_circ = pd.DataFrame()
         with open(self.region) as f:
             for line in f:
                 region = line.strip().split()
@@ -248,6 +225,8 @@ class Chimeric_circ:
                 end = region[2]
 
                 pos_dict = self.Read_position(self.bamfile,self.MapQ,str(chr),int(start), int(end))
+                #chr_start, all_start, chr_end, all_end = self.Circle_Fragment(self.bamfile,self.MapQ,str(chr),int(start), int(end))
+                #Final_dict = self.Circle_dict(chr_start, all_start, chr_end, all_end)
 
                 if pos_dict == {}:
                     pass
@@ -255,99 +234,132 @@ class Chimeric_circ:
                     #print(pos_dict)
                     chr_start, all_start, chr_end, all_end = self.Circle_Fragment(pos_dict)
                     Final_dict = self.Circle_dict(pos_dict,chr_start, all_start, chr_end, all_end)
-                    #print(Final_dict)
-                    df_circ, last4_df = self.Circle_dataframe(Final_dict,i)
+                    print(Final_dict)
+                    print("---------------")
 
-                    #without .fillna("") the columsn with havec deafault NaN and type == float64. instead of object
-                    Complex_df = Complex_df.append(df_circ, sort=False)
-
-                    Final_4_df = Final_4_df.append(last4_df)
-                    i+=1
-
-        # concatenates the last 4 columns to the regions
-        resulting_df = pd.concat([Complex_df.reset_index(drop=True), Final_4_df.reset_index(drop=True)], axis=1)
-        pd.set_option("display.max_rows", None, "display.max_columns", None)
-
-        cols = list(resulting_df)[0:-4]
-        del cols[0::4]
-
-        #ensuring coordinates are int
-        resulting_df[cols] = resulting_df[cols].astype(float).astype('Int64')
-
-
-        Bed_File = bt.BedTool.from_dataframe(resulting_df)
-        Bed_File.saveas(self.output)
 
 if __name__ == '__main__':
-    Read_class=Chimeric_circ("BC10_1000_cov.bed","/isdata/common/wql443/NanoCircle/ArgParse_test/temp_reads/Chimeric_reads.bam","bedtest.bed",60)
-    Read_class.Region()
+    import re
+
+    #Read_class=Chimeric_circ("BC10_1000_cov.bed","/isdata/common/wql443/NanoCircle/ArgParse_test/temp_reads/Chimeric_reads.bam","lol.bed",30)
+    #Read_class.Region()
 
     #{'39095b54-1d0e-4b83-a9d8-6835a35b6b10': ['chr3', 25835745, 25838666, 'chr5', 97527852, 97528828, 'chr3', 189031241, 189032261]}
     #{'read1': {'region1': ['chrX', [25695885], [25698611, 25699658]], 'region2': ['chr8', [9264985], [9265627]]},'read2': {'region1': ['chrX', [25698644], [25699842]], 'region2': ['chr7', [56391669], [56392283]]}}
 
-    exit()
+    #exit()
 
-    d2 = {('deab517e-a955-4eba-9b7c-a0663d29a0d4', 'b9f9ff80-f0a4-4300-861f-b9f0e6eea523'): ['chr8', 9264985, 9265627,
+    d = {('deab517e-a955-4eba-9b7c-a0663d29a0d4', 'b9f9ff80-f0a4-4300-861f-b9f0e6eea523'): ['chr8', 9264985, 9265627,
                                                                                         'chrX', 25695885, 25699842,
                                                                                         'chr7', 56391669, 56392283]}
 
-    d = {('deab517e-a955-4eba-9b7c-a0663d29a0d4', 'b9f9ff80-f0a4-4300-861f-b9f0e6eea523'): ['chr8', 9264985, 9265627, 642,
-                                                                                        'chrX', 25695885, 25699842,
-                                                                                        3957, 'chr7', 56391669,
-                                                                                        56392283, 614]}
 
-    pd.set_option("display.max_rows", None, "display.max_columns", None)
+    exit()
 
-    #add .reset_index() if you want the first column to be the reads
-    df = pd.DataFrame.from_dict(d, orient='index')
+    a = []
+    test = {'read1': {'region1': ['chrX', [25695885], [25698611, 25699658]], 'region2': ['chr8', [9264985], [9265627]]},
+            'read2': {'region1': ['chrX', [25698644], [25698611]], 'region2': ['chr7', [56391669], [56392283]]},
+            'read3': {'region1': ['chrX', [100], [200]], 'region2': ['chr22', [14444], [16444]]}}
 
-    df_col = ["Chr", "Start", "End", "Length"]
-    rep = int(len(list(d.values())[0]) / 4)
-    df.columns = [j + "_" + str(i) for i in range(1, rep + 1) for j in df_col]
+    chr_start = []
+    chr_end = []
 
-    # creates a dataframe with chromosome information
+    all_start = []
+    all_end = []
+    for k1,v1 in test.items():
+        #print("DICT",test[k1])
+        for v2 in test[k1].values():
+            #print("values2",v2)
+            chr_start.extend(len(v2[1])*[v2[0]])
+            #all_start.append(v2[0])
+            all_start.extend(v2[1])
 
-    print(df)
-    # four final columns for all chimeric eccDNA
-    df_final4 = pd.DataFrame(columns=['Total_len', 'No_fragments', 'No_reads', 'Config_ID'])
+            chr_end.extend(len(v2[2]) * [v2[0]])
+            #all_end.append(v2[0])
+            all_end.extend(v2[2])
 
-    # The sum of all the Length columns giving total length
-    df_final4['Total_len'] = df.filter(regex=("Length.*")).sum(axis=1)
-    df_final4['No_fragments'] = rep
-    df_final4['No_reads'] = len(list(d.keys())[0])
-    df_final4['Config_ID'] = "lol"
-
-    print("-----------")
-    print(df_final4)
-
-    #print(pd.DataFrame.from_dict(d, orient='index'))
-
-
-
-
-"""
-    
+    def chr_coord_sort(chrlist, coordlist):
+        """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
+        coord_idx = np.argsort(coordlist)
+        Coord_sort = [coordlist[i] for i in coord_idx]
+        chr_sort = [chrlist[i] for i in coord_idx]
+        return Coord_sort, chr_sort
 
 
+    def Grouping_chr(Chr_sort, Group_size):
+        """ Groups the chromosomes in to match the grouped coordinates """
+        Grouped_chr = []
+        Step = 0
+        for i in Group_size:
+            Grouped_chr.append(Chr_sort[Step:Step + i])
+            Step += i
+        return Grouped_chr
 
-    add_val = [int(tot_len), len(list(dict.keys())), Read_ID_str, "%s" % circ_type,
-               "%s_Complex_circ_%d" % (SampleID, Circ_no)]
-    chr_col = {add_col[0]: add_val[0], add_col[1]: add_val[1], add_col[2]: add_val[2],
-               add_col[3]: add_val[3], add_col[4]: add_val[4]}
-    df_final5 = pd.DataFrame(columns=add_col)
-    df_final5 = df_final5.append(chr_col, ignore_index=True)
-    # number of times df_col needed to be repeated
-    
-    #print("----------------")
-        #resulting_df["End_4"] = resulting_df["End_4"].astype(float).astype('Int64')
-        #resulting_df["Start_2"] = resulting_df["Start_2"].astype(float).astype('Int64')
-        #print(resulting_df)
-        #print(resulting_df.dtypes)
-        #resulting_df.apply(lambda col: pd.to_numeric(col, errors='coerce'))
-        #resulting_df['Length_4'] = resulting_df['Length_4'].astype(str).astype(int)
-        #resulting_df.astype({'Length_4': 'int64'})
-        #resulting_df.apply(pd.to_numeric, errors='ignore')
-        #resulting_df.astype(int, errors='ignore')
-        #resulting_df.options.display.float_format = '{:,.0f}'.format
 
-"""
+    def Grouping(Coord_list, overlap_bp):
+        """ Groups a given list, for which elements within the overlap range is grouped together"""
+        First = [[Coord_list[0]]]
+        for i in Coord_list[1:]:
+            # sets the previous and current elem as the first elem
+            prev = First[-1]
+            current = prev[-1]
+            dist = abs(i - current)
+
+            # if dist between is below overlapping bp, then it it belong to the same group
+            if dist < overlap_bp:
+                prev.append(i)
+            else:
+                First.append([i])
+        return First
+
+    def Common_elem(chr_list,coord_list,overlap,pos):
+
+        #Still some issues if the cases with multiple different chromosomes which have coordinates overlapping are
+            # clustered together
+
+        Sort_coord, Sort_chr = chr_coord_sort(chr_list, coord_list)
+        Grouped_coord = Grouping(Sort_coord, overlap)
+        Group_size = [len(i) for i in Grouped_coord]
+        Grouped_start = Grouping_chr(Sort_chr, Group_size)
+
+        #print(Grouped_coord,Group_size,Grouped_start)
+
+        final_reg = []
+        for i in range(len(Group_size)):
+            #if there is only one coordinate
+            if Group_size[i] == 1:
+                final_reg.extend([Grouped_start[i][0],Grouped_coord[i][0]])
+
+            # multiple coordinates
+            elif Group_size[i] >= 1:
+                occurence_count = Counter(Grouped_coord[i])
+
+                # select the most frequent coordinate
+                if list(occurence_count.values())[0] > 1:
+                    final_reg.extend([Grouped_start[i][0], occurence_count.most_common(1)[0][0]])
+
+                else:
+                    #if the pos is start then we take the minimum
+                    if pos == 0:
+                        final_reg.extend([Grouped_start[i][0], min(Grouped_coord[i])])
+
+                    # if the pos is max then we take the maximum
+                    if pos == 1:
+                        final_reg.extend([Grouped_start[i][0], max(Grouped_coord[i])])
+
+        return final_reg
+
+    start = Common_elem(chr_start,all_start,5000,0)
+    end = Common_elem(chr_end, all_end, 5000,1)
+    print(start)
+    print(end)
+    print()
+
+    d = {}
+    d[tuple(test.keys())] = []
+    print(d)
+    for i in range(len(start[::2])):
+        d[tuple(test.keys())].extend([start[0::2][i],start[1::2][i],end[1::2][i]])
+
+    print(d)
+    exit()
