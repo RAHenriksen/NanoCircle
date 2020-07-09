@@ -92,7 +92,7 @@ class NanoCircle:
                 Class_object.Region()
 
             elif sys.argv[1] == "Merge":
-                print("Chimeric works")
+                print("Merge works")
                 self.subprogram = self.args_Merge()
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 

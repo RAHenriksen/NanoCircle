@@ -60,10 +60,17 @@ class Read_Filter:
                                 # Handle the reads with dist above 100 k as chim with single supp, but it could in theory be simple
                                 if abs(Prim_pos[0]-int(Tag_elem[0][1])) > 100000 and \
                                         abs(Prim_pos[1]-(int(Tag_elem[0][1])+Utils.CIGAR_len(Tag_elem[0][3]))) > 100000:
-                                    ps_chimeric.write(read)
+
+                                    #ensures the chimeric read supp alignment is also above mapQ
+                                    if int(Tag_elem[0][4]) >= self.MapQ:
+                                        ps_chimeric.write(read)
+                                    #if not we discard the read
+                                    else:
+                                        continue
 
                                 else:
                                     ps_simple.write(read)
+
                             #single supp to another chr
                             else:
                                 ps_chimeric.write(read)
@@ -112,8 +119,8 @@ class Read_Filter:
 
 if __name__ == '__main__':
     #print(Merged_dict)
-    """
-    Read_class=Read_Filter("/isdata/common/wql443/NanoCircle/BC02.aln_hg19.bam",30)
+
+    Read_class=Read_Filter("/isdata/common/wql443/NanoCircle/ArgParse_test/BC10.aln_hg19.bam","temp_reads",30)
     Read_class.Filter()
     """
 
@@ -133,4 +140,4 @@ if __name__ == '__main__':
         c.append(int(a[i]))
         c.append(int(a[i])+b[i])
     print(c)
-    a = [ i for i in a[i]]
+    a = [ i for i in a[i]]"""
