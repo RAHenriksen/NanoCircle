@@ -7,284 +7,230 @@ import pandas as pd
 import numpy as np
 import pybedtools as bt
 import operator
-
+from subprocess import call,Popen, PIPE, STDOUT
 
 print("Imports the chimeric script")
-class Chimeric_circ:
+class Merge_config:
     #Command 2
-    def __init__(self,region,bamfile,output,MapQ):
-        self.region = region
-        self.bamfile = bamfile
-        self.output = output
-        self.MapQ = MapQ
+    def __init__(self,circ_bed,dist):
+        self.circ_bed = circ_bed
+        self.dist = dist
 
-    def Read_position(self,bamfile,MapQ,reg,start,end):
-        """Creates a dictionary of the primary alignments for the soft-clipped reads"""
-        Pos_dict = {}
+    def Region_seperate(self):
+        """
+        Splits the chimeric regions into seperate lines and merge the overlapping lines
+        :return: a merged bed format file with the 4th col being the merged chimeric ID's
+        """
+        Merge_df = pd.read_csv(self.circ_bed, sep='\t',header=None)
 
-        Read_File = Utils.SamBamParser(bamfile)
+        dataframe_val = Merge_df.values
 
-        Total_coord = []
-        Total_chr = []
-        Total_overlap = []
+        df = pd.DataFrame()
+        circ_no = 0
+        for line in dataframe_val:
+            # the different column values from the created bed file
+            chr_regions = line[:-4]
+            chr_val = chr_regions[0::4]
+            start_val = chr_regions[1::4]
+            end_val = chr_regions[2::4]
 
-        for read in Read_File.fetch(reg, start, end, multiple_iterators=True):
+            circ_no += 1
 
-            prim_pos = [int(read.reference_start) + 1, int(read.reference_end)]
+            chr_col = pd.DataFrame({"Chr": chr_val, "Start": start_val, "End": end_val,"ID": "Chimeric_%s" % circ_no})
+            df = df.append(chr_col)
 
-            #creates a dict of dict, with key = read and its value the regions to which it aligns also found with
-            #keys
-            Pos_dict[read.query_name] = {'region1':[reg,[prim_pos[0]],[prim_pos[-1]]]}
+        #replace empty cells (.) with NaN and remove these rows
+        df = df.replace('\.+', np.nan, regex=True).dropna()
+        df['Start'] = df['Start'].astype(float).astype('Int64')
+        df['End'] = df['End'].astype(float).astype('Int64')
 
-            Total_chr.extend((reg, reg))
-            Total_coord.extend((prim_pos[0], prim_pos[1]))
+        df = df.sort_values(by=["Chr","Start","End"],ascending=[True,True,True])
+        bedformat = bt.BedTool.from_dataframe(df)
 
-            #splits all alignment into individual alignments, opposite to the simple_cmd since they
-                # align to different chrom
-            Tag = read.get_tag("SA").split(';')[:-1]
-            cigar_len = []
+        Collapsed = bedformat.merge(d=self.dist,c=[4], o="collapse")
 
-            i=1
-            for Tagelem in Tag:
-                # splitting the individual aligment info up
-                Align_info = Tagelem.split(',')
-                if int(Align_info[4]) >= MapQ:
-                    Chrom = Align_info[0]
-                    Length = Utils.CIGAR_len(Align_info[3])
-                    cigar_len.append(Length)
+        #print(df.sort_values(['Chr','Start','End'], ascending=[True,True,True]))
 
-                    # 1 - based positions
-                    pos_start = int(Align_info[1]) - 1
-                    pos_end = int(Align_info[1]) + Length - 1
-                    supp_pos = [pos_start,pos_end]
-                    #print(Chrom, pos_start, pos_end)
-                    # the overlaps between coordinates for grouping
-                    overlap = sum(cigar_len) * 4
-                    Total_overlap.append(overlap)
+        #chr_order = ["chr" + str(i) for i in range(1, 23)]+['chrX','chrY']
+        #df['Chr'] = pd.Categorical(df['Chr'], chr_order)
 
-                    # if the supp align is in between the circular input region then it aligns back to the primary region
-                    if Chrom == reg and start - overlap <= pos_start <= end + overlap and start - overlap <= pos_end <= end + overlap:
-                        #print("YOYLO",prim_pos, pos_start, pos_end, overlap, Total_overlap)
+        Bed_test = bt.BedTool.from_dataframe(df)
+        Collapsed.saveas("lol.bed")
 
-                        # From left to right across breakpoint
-                        if Utils.Right_dir(prim_pos, supp_pos) == True:
-                            #appends to the end coordinate
-                            Pos_dict[read.query_name]['region1'][2].append(supp_pos[-1])
+        return Collapsed
 
-                        # From right to left
-                        elif Utils.Left_dir(prim_pos, supp_pos) == True:
-                            #start coordinate
-                            Pos_dict[read.query_name]['region1'][1].append(supp_pos[0])
+    def Collapsed_split(self):
+        """
+        splits the collapsed bed file up into different information
+        :return:
+        """
 
-                        # primary read covers entire circle, and supp is between prim, but use both anyways due to
-                        # perhaps having repeat alignment. Which is helpful for most common
-                        elif Utils.Circ_once(prim_pos, supp_pos) == True:
-                            Pos_dict[read.query_name]['region1'][1].append(supp_pos[0])
-                            Pos_dict[read.query_name]['region1'][2].append(supp_pos[-1])
+        input = self.Region_seperate()
+        line_val_list = []
+        id_val_list = []
 
-                    # add supp which arent in the primary align chromosome region
-                    else:
-                        # if the supp chromosome is the same as already in a region, check the coordinates
-                        reg_chr = Pos_dict[read.query_name]['region{0}'.format(i)][0]
-                        reg_start = Pos_dict[read.query_name]['region{0}'.format(i)][1]
-                        reg_end = Pos_dict[read.query_name]['region{0}'.format(i)][2]
-                        # checking the coordinates, if an overlap exist, the coordinates are appended to the existing coordinates
-                            # depending on the direction
-                        if reg_chr == Chrom and min(reg_start) - overlap <= pos_start <= max(reg_end) + overlap and \
-                                min(reg_start) - overlap <= pos_end <= max(reg_end) + overlap:
-                            if Utils.Right_dir(prim_pos, supp_pos) == True:
-                                # appends to the end coordinate
-                                Pos_dict[read.query_name]['region{0}'.format(i)][2].append(supp_pos[-1])
+        # opens and splits up the collapsed columns with regions and circle ID's
+        for line_value in input:
+            # line_value[0:3] => each chromosome region
+            line_val_list.append(line_value[0:3])
 
-                            # From right to left
-                            elif Utils.Left_dir(prim_pos, supp_pos) == True:
-                                # start coordinate
-                                Pos_dict[read.query_name]['region{0}'.format(i)][1].append(supp_pos[0])
+            #list with the collapsed circle ID
+            id_val_list.append(line_value[3].split(","))
 
-                            # primary read covers entire circle, and supp is between prim, but use both anyways due to
-                            # perhaps having repeat alignment. Which is helpful for most common
-                            if Utils.Circ_once(prim_pos, supp_pos) == True:
-                                Pos_dict[read.query_name]['region{0}'.format(i)][1].append(supp_pos[0])
-                                Pos_dict[read.query_name]['region{0}'.format(i)][2].append(supp_pos[-1])
+        print("line val", line_val_list)
+        print("ID val", id_val_list)
 
-                        # Otherwise the supp aligns to another region
-                        else:
-                            i += 1
-                            Pos_dict[read.query_name]['region{0}'.format(i)] = [Chrom, [pos_start], [pos_end]]
+        #print("id",id_val_list)
+        #print(line_val_list)
+        return id_val_list, line_val_list
 
-        return Pos_dict
+    def overlap_region(self,list1,list2):
+        """
+        :param list1: first chromosome region e.g ['chr1', 37777195, 37778735]
+        :param list2: second chromosome region e.g. ['chr18', '4219198', '4222801']
+        :param nt_overlap: The number of nt the regions can have between them before
+        :return: list of interval [chr,min,max] if the distance between the regions are below nt_overlap. Otherwise
+        the regions are concatenated e.g.  ['chr1', '37777195', '37778735','chr18', '4219198', '4222801']
+        """
 
-    def chr_coord_sort(self, chrlist, coordlist):
-        """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
-        coord_idx = np.argsort(coordlist)
-        Coord_sort = [coordlist[i] for i in coord_idx]
-        chr_sort = [chrlist[i] for i in coord_idx]
+        #print("Chromosome", list1, list2,list1[-3],list2[0])
 
-        return Coord_sort, chr_sort
-
-    def Grouping_chr(self, Chr_sort, Group_size):
-        """ Groups the chromosomes in to match the grouped coordinates """
-        Grouped_chr = []
-        Step = 0
-
-        for i in Group_size:
-            Grouped_chr.append(Chr_sort[Step:Step + i])
-            Step += i
-
-        return Grouped_chr
-
-    def Grouping(self,Coord_list, overlap_bp):
-        """ Groups a given list, for which elements within the overlap range is grouped together"""
-
-        First = [[Coord_list[0]]]
-
-        for i in Coord_list[1:]:
-
-            # sets the previous and current elem as the first elem
-            prev = First[-1]
-            current = prev[-1]
-            dist = abs(i - current)
-
-            # if dist between is below overlapping bp, then it it belong to the same group
-            if dist < overlap_bp:
-                prev.append(i)
+        # if the chromosome is the same there is potential for overlap, compare previous region list1[-3] to the next
+        # region list[0]
+        if list1[-3] == list2[0]:
+            # if there are overlap between the regions create the interval
+            if abs(int(list1[-2]) - int(list2[1])) < self.dist and abs(int(list1[-1]) - int(list2[2])) < self.dist:
+                start = min(int(list1[-2]), int(list2[1]))
+                end = max(int(list1[-1]), int(list2[2]))
+                return (list1[:-3]+[str(list1[-3]),start,end])
+            #with no overlap concatenate the list to add the next regions
             else:
-                First.append([i])
+                return(list1 + list2)
 
-        return First
+        else:
+            return(list1 + list2)
 
-    def Circle_Fragment(self, dict):
-        """Creates list with the full region of start and end coordinates (all_start) and list of
-        equal length with the corresponding chromosomes"""
-        chr_start = []
-        all_start = []
+    def modulo_length(self,list):
+        """
+        :param list: list with the different chromosomal fragmens chr:start:end:chr:start:end...
+        :return: a list with the structure chr:start:end:length:chr:start:end:length...
+        """
+        final_list = []
+        for i in range(len(list)):
+            if i % 3 == 0:
+                # chromosome
+                final_list.append(list[i])
 
-        chr_end = []
-        all_end = []
+            elif i % 3 == 1:
+                # start coordinate
+                final_list.append(int(list[i]))
 
-        for k1, v1 in dict.items():
-            for v2 in dict[k1].values():
-                #Creates a single list with the full regions with start coordinates and end coordinates
-                chr_start.extend(len(v2[1]) * [v2[0]])
-                all_start.extend(v2[1])
+            elif i % 3 == 2:
+                #last coordinate and final length
+                final_list.append(int(list[i]))
+                final_list.append(int(final_list[-1] - final_list[-2]))
 
-                chr_end.extend(len(v2[2]) * [v2[0]])
-                all_end.extend(v2[2])
+        return final_list, sum(final_list[3::4])
 
-        return chr_start,all_start,chr_end,all_end
+    def Merge_circles(self):
+        """
+        Iterates through the collapsed regions and compare those regions from same chimeric ID to merge these regions
+        :return:list of list of all regions,
+                list of total lengths of the chimeric ecccDNA,
+                list of list of chimeric ID for merged circle
+        """
+        id_val_list, line_val_list = self.Collapsed_split()
 
-    def Common_coord(self,chr_list,coord_list,overlap,pos):
-        """ Identifies the most common coordinates for a given fragment for all reads,
-        identified by grouping potential coordinates"""
+        #number of different regions
+        idx_list = [i for i in range(len(id_val_list))]
+        j_idx_list = []
 
-        #Still some issues if the cases with multiple different chromosomes which have coordinates overlapping are
-            # clustered together
+        Chr_reg_list = []
+        total_ID = []
 
-        Sort_coord, Sort_chr = self.chr_coord_sort(chr_list, coord_list)
-        Grouped_coord = self.Grouping(Sort_coord, overlap)
-        Group_size = [len(i) for i in Grouped_coord]
-        Grouped_start = self.Grouping_chr(Sort_chr, Group_size)
+        #each individual region
+        for idx in idx_list:
+            #print("iterate", idx, line_val_list[idx], id_val_list[idx])
 
-        final_reg = []
-        for i in range(len(Group_size)):
-            #if there is only one coordinate
-            if Group_size[i] == 1:
-                final_reg.extend([Grouped_start[i][0],Grouped_coord[i][0]])
+            ID_list = []
 
-            # multiple coordinates
-            elif Group_size[i] >= 1:
-                occurence_count = Counter(Grouped_coord[i])
+            if idx in j_idx_list:
+                #print("pass",idx,j_idx_list)
+                # if the regions has already been merged pass
+                pass
+            else:
+                #extracts the chr region
+                line_values = line_val_list[idx]
 
-                # select the most frequent coordinate
-                if list(occurence_count.values())[0] > 1:
-                    final_reg.extend([Grouped_start[i][0], occurence_count.most_common(1)[0][0]])
+                #compare this single region with all the others
+                for j_idx in range(len(idx_list)):
 
-                else:
-                    #if the pos is start then we take the minimum
-                    if pos == 0:
-                        final_reg.extend([Grouped_start[i][0], min(Grouped_coord[i])])
+                    #checks if the ID for this regions matches any of the other regions ID
+                    if any(e in id_val_list[idx] for e in id_val_list[j_idx]):
+                        print("Jindex", j_idx, id_val_list[idx], id_val_list[j_idx], list(set(id_val_list[idx]+ id_val_list[j_idx])))
 
-                    # if the pos is max then we take the maximum
-                    if pos == 1:
-                        final_reg.extend([Grouped_start[i][0], max(Grouped_coord[i])])
+                        #appends the index of the matching regions based on the ID
+                        j_idx_list.append(j_idx)
+                        print("J IDX LIST",j_idx_list)
+                        ID_list.append(id_val_list[j_idx])
+                        print("ID List", ID_list)
 
-        return final_reg
+                        #if the any ID matches, check if the regions are overlapping
+                        line_values = self.overlap_region(line_values, line_val_list[j_idx])
+                        print("LINE",line_values)
+                        line_values = line_values
 
-    def Circle_dict(self,dict,Start_chr,Start_coord,End_chr,End_coord):
-        """ Creates dictionary for each circule with all reads, and the most common coordinates"""
-        start = self.Common_coord(Start_chr, Start_coord, 10000, 0)
-        end = self.Common_coord(End_chr, End_coord, 10000, 1)
+                        #updates the list of ID to the unique set of merged ID
+                        id_val_list[idx] = list(set(id_val_list[idx] + id_val_list[j_idx]))
+                    else:
+                        continue
 
-        d = {}
-        d[tuple(dict.keys())] = []
-        for i in range(len(start[::2])):
-            d[tuple(dict.keys())].extend([start[0::2][i], start[1::2][i], end[1::2][i],end[1::2][i]-start[1::2][i]])
+                Chr_reg_list.append(line_values)
 
-        return d
-
-    def Circle_dataframe(self,circle_dict,ID):
-        "Creates two dataframes, the first is the fragment information and the second general information"
-
-        df_frag = pd.DataFrame.from_dict(circle_dict, orient='index')
-
-        #The initial columns for the final dataframe, but the fragments can vary for individual chimeric eccDNA
-        df_col = ["Chr", "Start", "End", "Length"]
-        rep = int(len(list(circle_dict.values())[0]) / 4)
-        df_frag.columns = [j + "_" + str(i) for i in range(1, rep + 1) for j in df_col]
-
-        #Always the last four columns of the last dataframe
-        df_general = pd.DataFrame(columns=['Total_len', 'No_fragments', 'No_reads', 'Config_ID'])
-
-        # The sum of all the Length columns giving total length
-        df_general['Total_len'] = df_frag.filter(regex=("Length.*")).sum(axis=1)
-        df_general['No_fragments'] = rep
-        df_general['No_reads'] = len(list(circle_dict.keys())[0])
-        df_general['Config_ID'] = "Chimeric_%d" % (ID)
-
-        return df_frag, df_general
-
-    def Region(self):
-        Complex_df = pd.DataFrame()
-        Final_4_df = pd.DataFrame()
-        i = 1
-        with open(self.region) as f:
-            for line in f:
-                region = line.strip().split()
-                chr = region[0]
-                start = region[1]
-                end = region[2]
-
-                pos_dict = self.Read_position(self.bamfile,self.MapQ,str(chr),int(start), int(end))
-
-                if pos_dict == {}:
-                    pass
-                else:
-                    #print(pos_dict)
-                    chr_start, all_start, chr_end, all_end = self.Circle_Fragment(pos_dict)
-                    Final_dict = self.Circle_dict(pos_dict,chr_start, all_start, chr_end, all_end)
-                    #print(Final_dict)
-                    df_circ, last4_df = self.Circle_dataframe(Final_dict,i)
-
-                    #without .fillna("") the columsn with havec deafault NaN and type == float64. instead of object
-                    Complex_df = Complex_df.append(df_circ, sort=False)
-
-                    Final_4_df = Final_4_df.append(last4_df)
-                    i+=1
-
-        # concatenates the last 4 columns to the regions
-        resulting_df = pd.concat([Complex_df.reset_index(drop=True), Final_4_df.reset_index(drop=True)], axis=1)
-        pd.set_option("display.max_rows", None, "display.max_columns", None)
-
-        cols = list(resulting_df)[0:-4]
-        del cols[0::4]
-
-        #ensuring coordinates are int
-        resulting_df[cols] = resulting_df[cols].astype(float).astype('Int64')
+            print("FINAL_ID", ID_list,Chr_reg_list)
+            if ID_list != []:
+                Several_IDs = list(set([Circ_ID for subreg in ID_list for Circ_ID in subreg]))
+                total_ID.append(Several_IDs)
 
 
-        Bed_File = bt.BedTool.from_dataframe(resulting_df)
-        Bed_File.saveas(self.output)
+        #print("s",Chr_reg_list)
+        max_col = max(len(list) for list in Chr_reg_list)
+        Chr_reg_full = [self.modulo_length(i)[0] for i in Chr_reg_list]
+        #print(Chr_reg_full)
+        Total_length = [self.modulo_length(i)[1] for i in Chr_reg_list]
+        print("HURA")
+        print(Chr_reg_full[0])
+        print(Chr_reg_full)
+        print(Total_length)
+        print(total_ID)
+        print(max_col)
+        return Chr_reg_full,Total_length,max_col,total_ID
+
+    def circle_df(self):
+        Chr_reg_list, Total_length, max_col, id_val_list = self.Merge_circles()
+
+        ID = ["Merged_circ_{0}".format(i) for i in range(1, len(Chr_reg_list) + 1)]
+
+        rep = int(max_col / 3)
+        df_col = []
+        for i in range(1, rep + 1):
+            df_col.extend(["Chr_{0}".format(i), "Start_{0}".format(i), "End_{0}".format(i), "Length_{0}".format(i)])
+
+        df = pd.DataFrame(Chr_reg_list, columns=df_col)
+        df.fillna(value="nan", inplace=True)
+
+        add_col = ['Total_len', 'Unmerged_ID', 'Circle_ID']
+        add_val = [Total_length, id_val_list, ID]
+
+        for i in range(len(add_col)):
+            df.insert(loc=len(df.columns), column=add_col[i], value=add_val[i])
+
+        # ensure the chromosome lengths, and other numbers are integers
+        Merged_complex = bt.BedTool.from_dataframe(df)
+        Merged_complex.saveas("Merged_complex223.bed")
+
+
 
 if __name__ == '__main__':
-    Read_class=Chimeric_circ("BC10_1000_cov.bed","/isdata/common/wql443/NanoCircle/ArgParse_test/temp_reads/Chimeric_reads.bam","bedtest.bed",60)
-    Read_class.Region()
+    Read_class=Merge_config("BC10_Chimeric.bed",1000)
+    Read_class.circle_df()

@@ -36,8 +36,10 @@ class Read_Filter:
         #creates alignment files, with the different reads seperated
         ps_simple = ps.AlignmentFile("{0}/Simple_reads.bam".format(str(self.dir)), "wb", template=file)
         ps_chimeric = ps.AlignmentFile("{0}/Chimeric_reads.bam".format(str(self.dir)), "wb", template=file)
+        ps_discarded = ps.AlignmentFile("{0}/Discarded_reads.bam".format(str(self.dir)), "wb", template=file)
 
         for read in file.fetch():
+
             # filtering on the cigar string operation, S = 4
             if read.cigartuples[0][0] == 4 or read.cigartuples[-1][0] == 4:
                 # filtering on mapping quality
@@ -45,6 +47,7 @@ class Read_Filter:
                     # filtering on those reads with a pointer to part of read with tag.
                     # With prim pointing to supp, and supp pointing back to prim with "SA" tag
                     if read.has_tag("SA"):
+
                         Tag_full = read.get_tag("SA").split(';')[:-1]
                         # creating a nested list, with each tag elem as list elem
                         Tag_elem = [elem.split(',') for elem in Tag_full]
@@ -64,41 +67,47 @@ class Read_Filter:
                                     #ensures the chimeric read supp alignment is also above mapQ
                                     if int(Tag_elem[0][4]) >= self.MapQ:
                                         ps_chimeric.write(read)
+
                                     #if not we discard the read
-                                    else:
-                                        continue
+                                    else: #i choose to save it as to not lose read information
+                                        ps_discarded.write(read)
 
                                 else:
                                     ps_simple.write(read)
 
                             #single supp to another chr
                             else:
-                                ps_chimeric.write(read)
+                                if int(Tag_elem[0][4]) >= self.MapQ:
+                                    ps_chimeric.write(read)
+                                else:
+                                    ps_discarded.write(read)
 
                         # multiple supp align
                         elif len(Tag_elem) > 1:
-                            #print(" Chim tag", read.query_name,read.reference_name, Tag_elem)
+
+                            #Creating interval +- 50K from prim alignment to check for chimeric alignment
+                            Prim_interval = [Prim_pos[0] - 50000, Prim_pos[1] + 50000]
 
                             # if the SA tag have several alignments, it takes the unique set #set() of
                             # the given elements with zip
-                            Prim_interval = [Prim_pos[0] - 50000, Prim_pos[1] + 50000]
-
                             chr = list(set(list(zip(*Tag_elem))[0]))
-                            pos_start = list(list(zip(*Tag_elem))[1])
-                            #maps cigar list on all cigar strings found with zip*
-                            read_len = list(map(Utils.CIGAR_len,list(list(zip(*Tag_elem))[3])))
-                            pos_interval = []
-
-                            for i in range(len(pos_start)):
-                                pos_interval.append(int(pos_start[i]))
-                                pos_interval.append(int(pos_start[i]) + read_len[i])
 
                             # if the len of the unique set of chr is 1 its the same chromosome for all the SA
                             if len(chr) == 1:
                                 # if all supp is the same chromosome as prim
                                 if read.reference_name == str(chr[0]):
-                                    #due to the distance, if some supp alignment are outside the +- 50 k interval of prim its chimeric
-                                    if any(e < Prim_interval[0] or Prim_interval[1] < e for e in pos_interval):
+
+                                    mapQ_list = np.array(list(zip(*Tag_elem))[4]).astype(int)
+                                    mapQ_idx = np.where(mapQ_list >= self.MapQ)[0]
+
+                                    Boolean = []
+                                    for i in mapQ_idx:
+                                        # Checks if the supp with mapQ threshold is outside the prim_interval or not.
+                                        Boolean.append(int(Tag_elem[i][1]) < Prim_interval[0] or Prim_interval[1] < int(
+                                            Tag_elem[i][1]))
+
+                                    if True in Boolean:
+                                        #if the supp align w. mapQ >= threshold is outside interval its chimeric
                                         ps_chimeric.write(read)
                                     else:
                                         ps_simple.write(read)
@@ -107,20 +116,38 @@ class Read_Filter:
                                 else:
                                     ps_chimeric.write(read)
 
-                            #multiple different chr
+                            #supp is to multiple different chr
                             else:
-                                ps_chimeric.write(read)
+                                mapQ_list = np.array(list(zip(*Tag_elem))[4]).astype(int)
+                                mapQ_idx = np.where(mapQ_list >= self.MapQ)[0]
+
+                                # if any of the other chr has mapQ above threshold its chimeric
+                                if any(read.reference_name != Tag_elem[i][0] for i in mapQ_idx):
+                                    ps_chimeric.write(read)
+
+                                else:
+                                    # checks if its chimeric within the same chromosome using the prim_interval
+                                    Boolean = []
+                                    for i in mapQ_idx:
+                                        Boolean.append(int(Tag_elem[i][1]) < Prim_interval[0] or Prim_interval[1] < int(
+                                            Tag_elem[i][1]))
+
+                                    if True in Boolean:
+                                        # if the supp align w. mapQ >= threshold is outside interval its chimeric
+                                        ps_chimeric.write(read)
+                                    else:
+                                        # if within the interval its simple
+                                        ps_simple.write(read)
 
         ps_simple.close()
         ps_chimeric.close()
-
-
+        ps_discarded.close()
 
 
 if __name__ == '__main__':
     #print(Merged_dict)
 
-    Read_class=Read_Filter("/isdata/common/wql443/NanoCircle/ArgParse_test/BC10.aln_hg19.bam","temp_reads",30)
+    Read_class=Read_Filter("/isdata/common/wql443/NanoCircle/ArgParse_test/BC10.bam","temp_reads",60)
     Read_class.Filter()
     """
 

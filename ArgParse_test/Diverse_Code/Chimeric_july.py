@@ -265,7 +265,7 @@ class Chimeric_circ:
                     #print(Final_dict)
                     df_circ, last4_df = self.Circle_dataframe(Final_dict,i)
 
-                    #without .fillna("") the columns with have deafault NaN and type == float64. instead of object
+                    #without .fillna("") the columsn with havec deafault NaN and type == float64. instead of object
                     Complex_df = Complex_df.append(df_circ, sort=False)
 
                     Final_4_df = Final_4_df.append(last4_df)
