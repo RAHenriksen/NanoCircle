@@ -76,4 +76,9 @@ Or just use mean coverage
 Removing reads aligning to contamination sources, while still keeping the bam format.
 ~~~bash
 samtools view -h BC10.aln_hg19.bam |grep -v '>N'| grep -v '>A' |samtools view -Sbo BC10.bam -
+# No reads.
+cat BC07.fastq | awk '{print $1}' | grep '@' | sort | uniq | wc –l
+# No of mapped
+samtools view -F 0x4 BC07/BC07.aln_hg19.bam | cut -f 1 | sort | uniq | wc -l
+
 ~~~
