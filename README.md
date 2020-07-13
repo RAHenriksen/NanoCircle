@@ -73,8 +73,8 @@ To check if there might be a small region in between the coordinates without any
 Or just use mean coverage
 
 # Different unix command useful for data preparation, analysis and test
-Removing reads aligning to contamination sources, while still keeping the bam format.
 ~~~bash
+#Removing reads aligning to contamination sources, while still keeping the bam format.
 samtools view -h BC10.aln_hg19.bam |grep -v '>N'| grep -v '>A' |samtools view -Sbo BC10.bam -
 # No reads.
 cat BC07.fastq | awk '{print $1}' | grep '@' | sort | uniq | wc –l
