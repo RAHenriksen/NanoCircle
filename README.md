@@ -40,7 +40,7 @@ bedtools genomecov -bg -ibam barcode.aln_hg19.bam | bedtools merge -d 1000 -i st
 # Running NanoCircle to identify the eccDNA coordinates
 ## STEP 4 - Classify the soft-clipped read supporting Simple eccDNA and soft-clipped supporting Chimeric eccDNA
 ~~~bash
-python NanoCircle_arg.py Classify -i BC09_hg19.bam
+python NanoCircle_arg.py Classify -i barcode_hg19.bam -d temp_reads
 ~~~
 Which will be saved in a folder temp_reads containing both simple and complex reads in .bam format. 
 ### Create a .bai index for the read .bam
@@ -50,20 +50,19 @@ samtools index temp_reads/Chimeric_reads.bam
 ~~~
 ## STEP 5 - Identify Simple eccDNA using the coverage file and classified reads
 ~~~bash
-python NanoCircle_arg.py Simple -i barcode_1000_cov.bed --ibam temp_reads/Simple_reads.bam -q 60 -o barcode_Simple_circles.bed
+python NanoCircle_arg.py Simple -i barcode_1000_cov.bed -b temp_reads/Simple_reads.bam -q 60 -o barcode_Simple_circles.bed
 ~~~
 ## STEP 6 - Identify Chimeric eccDNA using the coverage file and classified reads
 ~~~bash
-python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
+python NanoCircle_arg.py Chimeric -i barcode_1000_cov.bed -b temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
+~~~
+The output being a bed file with possible configurations of several chimeric eccDNA, since the identification extract reads originating from specific regions.
+## STEP 7 - Merge Chimeric eccDNA configurations using the coverage file and classified reads
+~~~bash
+python NanoCircle_arg.py Merge -i barcode_Chimeric_circles.bed -o barcode_Merged_chimeric.bed
 ~~~
 The output being a bed file with possible configurations of several chimeric eccDNA, since the identification extract reads originating from specific regions.
 # Ideas not yet incorporated
-## STEP 7 - Merge Chimeric eccDNA configurations using the coverage file and classified reads
-~~~bash
-python NanoCircle_arg.py Chimeric -i  --ibam temp_reads/Chimeric_reads.bam -q 60 -o barcode_Chimeric_circles.bed
-~~~
-The output being a bed file with possible configurations of several chimeric eccDNA, since the identification extract reads originating from specific regions.
-
 ## STEP 8 - Jaccard Index
 calculating jaccard index for each individual circle compared to the estimated region with coverage
 ~~~bash
