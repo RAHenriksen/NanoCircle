@@ -44,10 +44,10 @@ class Simple_circ:
 
                 # a single supplementary alignment
                 if len(Tag) == 6:
-                    print("Single supp")
+                    #print("Single supp")
                     if int(Tag[4]) >= MapQ:
                         supp_pos = [int(Tag[1]), int(Tag[1]) + Utils.CIGAR_len(Tag[3])]
-                        print(supp_pos)
+                        #print(supp_pos)
 
                         # From left to right across breakpoint
                         if Utils.Right_dir(prim_pos, supp_pos) == True:
@@ -67,9 +67,9 @@ class Simple_circ:
 
                 # with multiple supplementary we need to keep the possible start or ends.
                 elif len(Tag) > 6:
-                    print("Multiple supp")
+                    #print("Multiple supp")
                     MapQ_val = Tag[4::5]
-                    print("MAPPIGN QUAL",MapQ_val)
+                    #print("MAPPIGN QUAL",MapQ_val)
                     Supp_start = Tag[1::5]
 
                     mult_coord = []
@@ -178,12 +178,12 @@ class Simple_circ:
     def Single_coord(self,bamfile,MapQ,reg,start,end):
 
         pos_dict = self.Read_position(bamfile, MapQ, reg, start, end)
-        print("lenght",len(pos_dict.keys()),pos_dict)
+        #print("lenght",len(pos_dict.keys()),pos_dict)
         # reduce start and end coordinates to those which are most common
         temp_dict = self.Reduce_coord(pos_dict, 'start')
         modify_dict = self.Reduce_coord(temp_dict, 'end')
-        print("lenght reduce start", len(temp_dict.keys()), temp_dict)
-        print("lenght reduce end", len(modify_dict.keys()), modify_dict)
+        #print("lenght reduce start", len(temp_dict.keys()), temp_dict)
+        #print("lenght reduce end", len(modify_dict.keys()), modify_dict)
 
         all_soft =  len(pos_dict.keys())
         # creates a single list with all s tart and end coordinates
@@ -196,14 +196,14 @@ class Simple_circ:
         if start_list and end_list != []:
             occ1, start_freq = self.most_frequent(start_list, 0)
             occ2, end_freq = self.most_frequent(end_list, 1)
-            print("start,end",start_freq,end_freq)
+            #print("start,end",start_freq,end_freq)
             if occ1 and occ2 == 1:
                 reads = []
                 chr = [reg]
                 if start_freq < end_freq:
                     new_val = chr + [start_freq, end_freq]
                 else:
-                    print("LLLOLLLLLLLLLLLLLL")
+                    #print("LLLOLLLLLLLLLLLLLL")
                     new_val = chr + [end_freq, start_freq]
 
                 for k, v in modify_dict.items():
@@ -259,10 +259,10 @@ class Simple_circ:
                 chr = region[0]
                 start = region[1]
                 end = region[2]
-                print("-------------------------------")
-                print("REGION",str(chr),int(start), int(end))
+                #print("-------------------------------")
+                #print("REGION",str(chr),int(start), int(end))
                 soft_no,circ_type,circle_dict = self.Single_coord(self.bamfile,self.MapQ,str(chr),int(start), int(end))
-                print("modify",circle_dict)
+                #print("modify",circle_dict)
                 if circ_type == 1:
                     circ_bed = self.Simple_circ_df(circle_dict, "high_conf",soft_no)
                     rows = pd.concat([Simple_circ, circ_bed])

@@ -12,8 +12,9 @@ from subprocess import call,Popen, PIPE, STDOUT
 print("Imports the chimeric script")
 class Merge_config:
     #Command 2
-    def __init__(self,circ_bed,dist):
+    def __init__(self,circ_bed,output,dist):
         self.circ_bed = circ_bed
+        self.output = output
         self.dist = dist
 
     def Region_seperate(self):
@@ -54,8 +55,8 @@ class Merge_config:
         #chr_order = ["chr" + str(i) for i in range(1, 23)]+['chrX','chrY']
         #df['Chr'] = pd.Categorical(df['Chr'], chr_order)
 
-        Bed_test = bt.BedTool.from_dataframe(df)
-        Collapsed.saveas("lol.bed")
+        #Bed_test = bt.BedTool.from_dataframe(df)
+        #Collapsed.saveas("lol.bed")
 
         return Collapsed
 
@@ -77,8 +78,8 @@ class Merge_config:
             #list with the collapsed circle ID
             id_val_list.append(line_value[3].split(","))
 
-        print("line val", line_val_list)
-        print("ID val", id_val_list)
+        #print("line val", line_val_list)
+        #print("ID val", id_val_list)
 
         #print("id",id_val_list)
         #print(line_val_list)
@@ -167,17 +168,16 @@ class Merge_config:
 
                     #checks if the ID for this regions matches any of the other regions ID
                     if any(e in id_val_list[idx] for e in id_val_list[j_idx]):
-                        print("Jindex", j_idx, id_val_list[idx], id_val_list[j_idx], list(set(id_val_list[idx]+ id_val_list[j_idx])))
+                        #print("Jindex", j_idx, id_val_list[idx], id_val_list[j_idx], list(set(id_val_list[idx]+ id_val_list[j_idx])))
 
                         #appends the index of the matching regions based on the ID
                         j_idx_list.append(j_idx)
-                        print("J IDX LIST",j_idx_list)
+
+                        #list of all ID for the concatenated regions
                         ID_list.append(id_val_list[j_idx])
-                        print("ID List", ID_list)
 
                         #if the any ID matches, check if the regions are overlapping
                         line_values = self.overlap_region(line_values, line_val_list[j_idx])
-                        print("LINE",line_values)
                         line_values = line_values
 
                         #updates the list of ID to the unique set of merged ID
@@ -185,28 +185,26 @@ class Merge_config:
                     else:
                         continue
 
+                #All the concatenated chromosome pieces
                 Chr_reg_list.append(line_values)
 
-            print("FINAL_ID", ID_list,Chr_reg_list)
             if ID_list != []:
                 Several_IDs = list(set([Circ_ID for subreg in ID_list for Circ_ID in subreg]))
+                #list of unique merged ID for each merged circle
                 total_ID.append(Several_IDs)
 
-
-        #print("s",Chr_reg_list)
         max_col = max(len(list) for list in Chr_reg_list)
+        # list of full chromosome regions for each merged chimeric eccDNA
         Chr_reg_full = [self.modulo_length(i)[0] for i in Chr_reg_list]
-        #print(Chr_reg_full)
+        # list of total length of the merged circles
         Total_length = [self.modulo_length(i)[1] for i in Chr_reg_list]
-        print("HURA")
-        print(Chr_reg_full[0])
-        print(Chr_reg_full)
-        print(Total_length)
-        print(total_ID)
-        print(max_col)
+
         return Chr_reg_full,Total_length,max_col,total_ID
 
     def circle_df(self):
+        """
+        :return: a bed file with the merged chimeric eccDNA information
+        """
         Chr_reg_list, Total_length, max_col, id_val_list = self.Merge_circles()
 
         ID = ["Merged_circ_{0}".format(i) for i in range(1, len(Chr_reg_list) + 1)]
@@ -217,9 +215,12 @@ class Merge_config:
             df_col.extend(["Chr_{0}".format(i), "Start_{0}".format(i), "End_{0}".format(i), "Length_{0}".format(i)])
 
         df = pd.DataFrame(Chr_reg_list, columns=df_col)
-        df.fillna(value="nan", inplace=True)
 
-        add_col = ['Total_len', 'Unmerged_ID', 'Circle_ID']
+        del df_col[0::4]
+        # ensuring coordinates are int
+        df[df_col] = df[df_col].astype(float).astype('Int64')
+
+        add_col = ['Total_len', 'Config_ID', 'Circle_ID']
         add_val = [Total_length, id_val_list, ID]
 
         for i in range(len(add_col)):
@@ -227,10 +228,10 @@ class Merge_config:
 
         # ensure the chromosome lengths, and other numbers are integers
         Merged_complex = bt.BedTool.from_dataframe(df)
-        Merged_complex.saveas("Merged_complex223.bed")
+        Merged_complex.saveas(self.output)
 
 
 
 if __name__ == '__main__':
-    Read_class=Merge_config("BC10_Chimeric.bed",1000)
+    Read_class=Merge_config("BC10_Chimeric.bed","Merged_test.bed",1000)
     Read_class.circle_df()

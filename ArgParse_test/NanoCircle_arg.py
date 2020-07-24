@@ -96,10 +96,10 @@ class NanoCircle:
                 self.subprogram = self.args_Merge()
                 self.args = self.subprogram.parse_args(sys.argv[2:])
 
-                import Chimeric_cmd as Chim
+                import Merge_cmd as Merge
 
-                Class_object = Chim.Chimeric_circ(self.args.i)
-                Class_object.multiply()
+                Class_object = Merge.Merge_config(self.args.input,self.args.output,self.args.dist)
+                Class_object.circle_df()
 
             else:
                 self.parser.print_help()
@@ -183,6 +183,7 @@ class NanoCircle:
         parser = self.Merge
 
         required = parser.add_argument_group('required arguments')
+        optional = parser.add_argument_group('optional arguments')
 
         # required arguments
         required.add_argument("-i", "--input", required=True, metavar="",
@@ -190,6 +191,8 @@ class NanoCircle:
         required.add_argument("-o", "--output", required=True, metavar="",
                               help='Tab seperated merged chimeric eccDNA configurations')
 
+        # optional arguments
+        optional.add_argument("-d", "--dist", metavar="", default=1000, type=int, help='Distance between potential overlapping regions')
 
         # if no arguments are parsed
         if len(sys.argv[2:]) == 0:
