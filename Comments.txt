@@ -1,0 +1,13 @@
+This is a argument parsed python file for the NanoCircle script i've used to create the results which is going to be published in the sperm article.
+This will just have 
+-Simple 
+-Chimeric
+-Merge
+
+
+However a newer version still under development is in the directory Argparse_test
+which has the subcommands.
+-classify
+-simple
+-chimeric
+-merge

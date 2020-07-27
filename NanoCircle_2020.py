@@ -217,9 +217,9 @@ def Single_coord(bamfile,mapQ,reg,start,end):
     #extract the most common
     if start or end != []:
         occ1,start_freq = most_frequent(start,0)
-        print("occurence,",occ1,"start",start_freq)
+        #print("occurence,",occ1,"start",start_freq)
         occ2,end_freq = most_frequent(end,1)
-        print("occurence,", occ2, "start", end_freq)
+        #print("occurence,", occ2, "start", end_freq)
         if occ1 and occ2 == 1:
             reads = []
             chr = [reg]
@@ -228,8 +228,8 @@ def Single_coord(bamfile,mapQ,reg,start,end):
             if start_freq < end_freq:
                 new_val = chr + [start_freq,end_freq]
             else:
-                print("lol")
-                print(end_freq,start_freq)
+                #print("lol")
+                #print(end_freq,start_freq)
                 new_val = chr + [end_freq,start_freq]
             #print("Start and end",new_val)
             for k,v in Circle_dict.items():
@@ -308,7 +308,7 @@ def Complex(bamfile,mapQ,reg, start, end):
     """ Check for potential complex circles by reads aligning across the genome. Afterwards it returns the simple circles
      with 1 set of coordinates (type I) several set of coordinates (type II) and the complex circles (type III)"""
     Type,Sing_dict = Single_coord(bamfile,mapQ,reg,start,end)
-    print("SINFG",Sing_dict)
+
     Complex_dict = {}
     Total_coord = []
     Total_chr = []
@@ -322,9 +322,12 @@ def Complex(bamfile,mapQ,reg, start, end):
     for read in Read_list:
         coord1 = list(Sing_dict.values())[0][-2]
         coord2 = list(Sing_dict.values())[0][-1]
+        #print("READ QUERY",read.query_name)
+        #print("SING DICT COMPLEX", Sing_dict.values())
+        #print("CORD",coord1,coord2)
         Total_chr.extend((reg,reg))
         Total_coord.extend((coord1,coord2))
-
+        #print("TOAL CHR",Total_chr,Total_coord)
         Tag = read.get_tag("SA").split(';')[:-1]
         Coord_list = []
         chroms = []
@@ -334,6 +337,7 @@ def Complex(bamfile,mapQ,reg, start, end):
         for Tagelem in Tag:
             #splitting the individual aligment info up
             Column_list = Tagelem.split(',')
+            #print("Column",Column_list)
             chrom = Column_list[0]
             length = CIGAR_len(Column_list[3])
             cigar_len.append(length)
@@ -386,11 +390,15 @@ def Complex(bamfile,mapQ,reg, start, end):
     else:
         #Sorting again to create the coordinate and chromosome list
         Coord_sort, chr_sort = chr_coord_sort(Total_chr, Total_coord)
+        #print("SORT",Coord_sort,chr_sort)
         Grouped_coord = Grouping(Coord_sort, max(Total_overlap))
+        #print("GROUPED",Grouped_coord)
         Group_size = [len(i) for i in Grouped_coord]
         Grouped_chr = Grouping_chr(chr_sort, Group_size)
         # circle type 3, complex circles comprised of several chromosomal regions across the genome.
         Type = 3
+        #print("SINFG", Sing_dict)
+        print("COMPLEX", Complex_dict,Type,Grouped_coord,Grouped_chr)
         return Complex_dict,Type,Grouped_coord,Grouped_chr
 
 def Simple_circ_df(beddict,Circ_no,circ_type,Filename):
@@ -442,6 +450,7 @@ def Complex_full_length(file_name,bamfile,bamname,mapQ):
             start = line_value[1]
             end = line_value[2]
             complex_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,mapQ, str(coord), int(start), int(end))
+            print("COMPLEX", complex_dict)
             if circ_type == 3:
                 if len(circ_coord) > total_col_len:
                     total_col_len = len(circ_coord)
@@ -574,9 +583,8 @@ def BED_Coverage(dir,bamfile,bamname,overlap,savedir,mapQ):
         coord = region[0]
         start = region[1]
         end = region[2]
-        print("THE CHROMOSOMAL COORDINATES",coord,start,end)
+        #print("THE CHROMOSOMAL COORDINATES",coord,start,end)
         circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile,mapQ, str(coord), int(start), int(end))
-
         if circ_type == 1:
             circ_bed = Simple_circ_df(circle_dict,Simple_count,"high_conf",bamname)
             rows = pd.concat([Simple_circ,circ_bed])
@@ -636,9 +644,9 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
             coord = region[0]
             start = region[1]
             end = region[2]
-            print("THE CHROMOSOMAL COORDINATES", coord, start, end)
+            #print("THE CHROMOSOMAL COORDINATES", coord, start, end)
             circle_dict, circ_type, circ_coord, circ_chr = Complex(bamfile, mapQ, str(coord), int(start), int(end))
-
+            print("DICT",circle_dict)
             if circ_type == 1:
                 circ_bed = Simple_circ_df(circle_dict, Simple_count, "high_conf", bamname)
                 rows = pd.concat([Simple_circ, circ_bed])
@@ -657,6 +665,7 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
                     Simple_circ = rows
                     Simple_count += 1
             elif circ_type == 3:
+                print("CIRCLE_DICT", circle_dict,circ_coord,circ_chr,Complex_count)
                 cird_df, Last5 = Complex_circ_df(circle_dict, circ_coord, circ_chr, Complex_count, "complex", bamname)
                 read_df, Last_3 = Complex_read_info(circle_dict, Complex_count, "complex", bamname)
 
@@ -683,6 +692,10 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
         Bed_reads = bt.BedTool.from_dataframe(resulting_read)
         Bed_reads.saveas("{0}Complex_reads_1000.bed".format(str(savedir)))
 
+if __name__ == '__main__':
+     bamfile = ps.AlignmentFile("/isdata/common/wql443/NanoCircle/BC01.aln_hg19.bam","rb")
+     FULL("/isdata/common/wql443/NanoCircle/BC01_1000_cov.bed",bamfile,"BC01.aln_hg19.bam","/isdata/common/wql443/NanoCircle/",60)
+
 """
 #aln_hg19_Qiagen, Qiagen_1000_cov.bed
 ID = "HS45"
@@ -694,8 +707,8 @@ FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/{0}/{1}/{1}_100
 
 #(file_name,bamfile,bamname,savedir,mapQ)
 #FULL("/isdata/common/wql443/Projects/Sperm_2019/Analysis/Samples/5.0samples/HS45/HS45_1000_cov.bed",bamfile,
-#     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)"""
+#     "{0}.aln_hg19.bam".format(ID),"/isdata/common/wql443/{0}_".format(ID),60)
 
 bamfile = ps.AlignmentFile("/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/chr1_243928620_243938331_region.bam","rb")
 FULL("/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/Cov.bed",bamfile,
-     "chr1_243928620_243938331_region.bam","/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/",60)
+     "chr1_243928620_243938331_region.bam","/isdata/common/wql443/NanoCircle/ArgParse_test/Real_test_data/",60)"""
