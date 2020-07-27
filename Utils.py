@@ -67,6 +67,17 @@ def Circ_once(prim_pos,supp_pos):
     if prim_pos[0] <= supp_pos[0] and prim_pos[-1] >= supp_pos[-1]:
         return True
 
+def Right_circ_dir(prim_pos,supp_pos):
+    """Checks if the sequencing direction is from left to right
+    spanning entire circle at least once"""
+    if prim_pos[0] < supp_pos[0] and prim_pos[-1] >= supp_pos[-1]:
+        return True
+
+def Left_circ_dir(prim_pos,supp_pos):
+    """Checks if the sequencing direction is from right to left
+    spanning entire circle at least once"""
+    if prim_pos[0] <= supp_pos[0] and prim_pos[-1] > supp_pos[-1]:
+        return True
 
 def df_float_to_int(df):
     "Ensures the coordinate values in the dataframe are integers"

@@ -12,37 +12,39 @@ import operator
 
 class Simple_circ:
     #Command 1
-    def __init__(self,region,bamfile,output,MapQ):
-        self.region = region
+    def __init__(self,regions,bamfile,output,MapQ):
+        self.regions = regions
         self.bamfile = bamfile
         self.output = output
         self.MapQ = MapQ
 
-    def Prim_dict(self,reg, start, end):
+    def Prim_dict(self,bamfile,reg, start, end):
         """Creates a dictionary of the primary alignments for the soft-clipped reads"""
+        print("PRIMARY WORK")
+
         Prim_dict = {}
-        for read in self.bamfile.fetch(reg, start, end, multiple_iterators=True):
+        for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
             # checks if soft-clipped
-            if IS_SA(read, self.MapQ) == True:
+            if Utils.IS_SA(read, self.MapQ) == True:
                 pos = ps.AlignedSegment.get_reference_positions(read)
 
                 # creates dict with key being read_id and value being read ref positions
                 Prim_dict[read.query_name] = [pos[0], pos[-1]]
         return Prim_dict
 
-    def Supplement_dict(self, reg, start, end):
+    def Supplement_dict(self,bamfile,reg, start, end):
         """Creates a dictionary of the primary soft-clipped reads and
         their corresponding supplementary alignments"""
 
-        Primary_dict = Prim_dict(self, reg, start, end)
+        Primary_dict = self.Prim_dict(bamfile,reg, start, end)
         SA_dict = {}
 
-        for read in self.bamfile.fetch(reg, start, end, multiple_iterators=True):
+        for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
 
             # only extract those supp in primary
             if read.query_name in Primary_dict.keys():
-                if IS_supp(read, self.MapQ) == True:
-
+                if Utils.IS_supp(read, self.MapQ) == True:
+                    print("LOL")
                     # extracts positions
                     supp_pos = ps.AlignedSegment.get_reference_positions(read)
                     prim_pos = Primary_dict[read.query_name]
@@ -51,164 +53,63 @@ class Simple_circ:
                     if read.query_name not in SA_dict.keys():
 
                         # From left to right
-                        if Right_dir(prim_pos, supp_pos) == True:
+                        if Utils.Right_dir(prim_pos, supp_pos) == True:
                             SA_dict[read.query_name] = [prim_pos[0], supp_pos[-1]]
 
                         # From right to left
-                        if Left_dir(prim_pos, supp_pos) == True:
+                        if Utils.Left_dir(prim_pos, supp_pos) == True:
                             SA_dict[read.query_name] = [supp_pos[0], prim_pos[-1]]
 
                         # From left to right once
-                        if Right_circ_dir(prim_pos, supp_pos) == True:
+                        if Utils.Right_circ_dir(prim_pos, supp_pos) == True:
                             SA_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
 
                         # From right to left once
-                        if Left_circ_dir(prim_pos, supp_pos) == True:
+                        if Utils.Left_circ_dir(prim_pos, supp_pos) == True:
                             SA_dict[read.query_name] = [prim_pos[0], prim_pos[-1]]
 
                     # Appends for reads with several supplementary alignments their position
                     elif read.query_name in SA_dict.keys():
 
-                        if Right_dir(prim_pos, supp_pos) == True:
+                        if Utils.Right_dir(prim_pos, supp_pos) == True:
                             if supp_pos[-1] not in SA_dict[read.query_name]:
                                 SA_dict[read.query_name].append(supp_pos[-1])
                         # From right to left
-                        if Left_dir(prim_pos, supp_pos) == True:
+                        if Utils.Left_dir(prim_pos, supp_pos) == True:
                             if prim_pos[-1] not in SA_dict[read.query_name]:
                                 SA_dict[read.query_name].append(prim_pos[-1])
 
                         # From left to right once
-                        if Right_circ_dir(prim_pos, supp_pos) == True:
+                        if Utils.Right_circ_dir(prim_pos, supp_pos) == True:
                             if prim_pos[-1] not in SA_dict[read.query_name]:
                                 SA_dict[read.query_name].append(prim_pos[-1])
 
                         # From right to left once
-                        if Left_circ_dir(prim_pos, supp_pos) == True:
+                        if Utils.Left_circ_dir(prim_pos, supp_pos) == True:
                             if prim_pos[-1] not in SA_dict[read.query_name]:
                                 SA_dict[read.query_name].append(prim_pos[-1])
+
         return SA_dict
 
+    def reduce_end_coords(self,bamfile,reg, start, end):
+        """ Reduce the number of end coordinates for those reads with several
+        supplementary alignments by comparing the position to the other end positions"""
 
-
-    def Read_position(self,reg,start,end):
-        """Creates a dictionary of the primary alignments for the soft-clipped reads"""
-        Prim_dict = {}
-        Supp_dict = {}
-
-        Read_File = Utils.SamBamParser(self.bamfile)
-
-        for read in Read_File.fetch(reg, start, end, multiple_iterators=True):
-            # checks if soft-clipped and has a supplementary tag and a mapping quality equal to threshold
-            if read.cigar[0][0] == 4 and read.has_tag("SA") and read.mapping_quality >= self.MapQ:
-
-                #print("READ_NAME",read.query_name, int(read.reference_start), int(read.reference_end)-1)
-                #print(ps.AlignedSegment.get_reference_positions(read)[0],ps.AlignedSegment.get_reference_positions(read)[-1])
-
-                # Creating a dictionary with primary alignment coordinates
-                #read.reference_end moves one past the last aligned residue
-                prim_pos = [int(read.reference_start)+1, int(read.reference_end)]
-                Prim_dict[read.query_name] = prim_pos
-
-                # supplementary alignment
-                Tag = read.get_tag("SA").split(',')
-
-                # Creating a dictionary with primary alignment and supplementary alignment coordinates
-
-                # a single supplementary alignment
-                if len(Tag) == 6:
-                    #print("Single supp")
-                    if int(Tag[4]) >= self.MapQ:
-                        supp_pos = [int(Tag[1]), int(Tag[1]) + Utils.CIGAR_len(Tag[3])]
-                        #print(supp_pos)
-
-                        # From left to right across breakpoint
-                        if Utils.Right_dir(prim_pos, supp_pos) == True:
-                            Supp_dict[read.query_name] = {'start':[prim_pos[0]],'end':[supp_pos[-1]]}
-
-                        # From right to left
-                        if Utils.Left_dir(prim_pos, supp_pos) == True:
-                            Supp_dict[read.query_name] = {'start':[supp_pos[0]],'end':[prim_pos[-1]]}
-
-                        # primary read covers entire circle, and supp is between prim, but use both anyways due to
-                        # perhaps having repeat alignment. Which is helpful for most common
-                        if Utils.Circ_once(prim_pos, supp_pos) == True:
-                            Supp_dict[read.query_name] = {'start':[prim_pos[0],supp_pos[0]],
-                                                          'end':[prim_pos[-1],supp_pos[-1]]}
-                    else:
-                        continue
-
-                # with multiple supplementary we need to keep the possible start or ends.
-                elif len(Tag) > 6:
-                    #print("Multiple supp")
-                    MapQ_val = Tag[4::5]
-                    #print("MAPPIGN QUAL",MapQ_val)
-                    Supp_start = Tag[1::5]
-
-                    mult_coord = []
-
-                    for i in range(len(MapQ_val)):
-                        if int(MapQ_val[i]) >= self.MapQ:
-
-                            #creates a list of list, with all possible supp coordinats
-                            mult_coord.append([int(Supp_start[i]),
-                                               int(Supp_start[i]) + Utils.CIGAR_len(Tag[3::5][i])])
-
-                            # takes the first set of supp coordinates within the multiple coordinates
-                            # and creates and entry in the Supp dictionary
-                            if read.query_name not in Supp_dict.keys():
-                                #coordinates based on the read orientation
-
-                                if Utils.Right_dir(prim_pos, mult_coord[0]) == True:
-                                    Supp_dict[read.query_name] = {'start':[prim_pos[0]], 'end':[mult_coord[0][-1]]}
-
-                                if Utils.Left_dir(prim_pos, mult_coord[0]) == True:
-                                    Supp_dict[read.query_name] = {'start':[mult_coord[0][0]], 'end':[prim_pos[-1]]}
-
-                                #read passes one over the circle, use both supp and prim align
-                                if Utils.Circ_once(prim_pos, mult_coord[0]) == True:
-                                    Supp_dict[read.query_name] = {'start':[prim_pos[0]],'end':[prim_pos[-1]]}
-                                    #print("Primary and multiple",prim_pos,mult_coord)
-
-                            #considers the additional supplementary coordinates
-                            if read.query_name in Supp_dict.keys():
-                                for i in mult_coord[1:]:
-                                    #print("Next coordinate set",i)
-
-                                    if Utils.Right_dir(prim_pos, i) == True:
-                                        Supp_dict[read.query_name]['end'].append(i[-1])
-                                        #print("right v3")
-                                    if Utils.Left_dir(prim_pos, i) == True:
-                                        Supp_dict[read.query_name]['start'].append(i[0])
-                                        #print("left v3")
-                                    if Utils.Circ_once(prim_pos, i) == True:
-                                        #print("full ONCE v3")
-                                        Supp_dict[read.query_name] = {'start': [prim_pos[0]], 'end': [prim_pos[-1]]}
-                                #print("Final_Supp",Supp_dict)
-                        else:
-                            continue
-        return Supp_dict
-
-    def Reduce_coord(self,pos_dict,pos):
-
-        pos_point = []
-        for k, v in pos_dict.items():
-            pos_point.extend(v[pos])
-        # find the most common end point
-
-        most_common = Counter(pos_point).most_common()
-
-        # the frequency value for each individual coordinates
-        freq_val = [item[-1] for item in most_common]
-
-        if any(x > 1 for x in freq_val):
-            # Adjust the end points if the most common end point is found
-            for k, v in pos_dict.items():
-                if most_common[0][0] in v[pos]:
-                    pos_dict[k][pos] = [most_common[0][0]]
-            return pos_dict
-
-        else:
-            return pos_dict
+        Coord = self.Supplement_dict(bamfile,reg, start, end)
+        # Counter of second list element for 2-element lists.
+        # I dont have several primary so there is no need for counting them
+        count = Counter(v[1] for v in Coord.values() if len(v) == 2)
+        # Result dict
+        reduce_dic = {}
+        # Iterate data entries
+        for k, v in Coord.items():
+            # Modify lists longer than two with at least one element in the counter
+            if len(v) > 2 and any(elem in count for elem in v[1:]):
+                # Replace list with first element and following element with max count
+                v = [v[0], max(v[1:], key=lambda elem: count.get(elem, 0))]
+            # Add to result
+            reduce_dic[k] = v
+        return reduce_dic
 
     def most_frequent(self,List, pos):
         count1 = Counter(List)
@@ -247,114 +148,205 @@ class Simple_circ:
                 if pos == 1:
                     return occ, max(List)
 
-    def Single_coord(self,reg,start,end):
+    def Reads(self,bamfile, reg, start, end, reads_IDs):
+        """ extract those reads which is found using the single coordinate dictionary"""
+        Read_list = []
+        for read in bamfile.fetch(reg, start, end, multiple_iterators=True):
+            if read.query_name in reads_IDs:
+                if Utils.IS_SA(read, self.MapQ) == True:
+                    Read_list.append(read)
+        return Read_list
 
-        pos_dict = self.Read_position(reg, start, end)
-        #print("lenght",len(pos_dict.keys()),pos_dict)
-        # reduce start and end coordinates to those which are most common
-        temp_dict = self.Reduce_coord(pos_dict, 'start')
-        modify_dict = self.Reduce_coord(temp_dict, 'end')
-        #print("lenght reduce start", len(temp_dict.keys()), temp_dict)
-        #print("lenght reduce end", len(modify_dict.keys()), modify_dict)
+    def chr_coord_sort(self,chrlist, coordlist):
+        """ Sort a list of chromosomes and their coordinates using the index of the numerically sorted coordinates"""
+        coord_idx = np.argsort(coordlist)
+        Coord_sort = [coordlist[i] for i in coord_idx]
+        chr_sort = [chrlist[i] for i in coord_idx]
+        return Coord_sort, chr_sort
 
-        all_soft =  len(pos_dict.keys())
-        # creates a single list with all s tart and end coordinates
-        start_list = []
-        end_list = []
-        for v in modify_dict.values():
-            start_list.extend(v['start'])
-            end_list.extend(v['end'])
-
-        if start_list and end_list != []:
-            occ1, start_freq = self.most_frequent(start_list, 0)
-            occ2, end_freq = self.most_frequent(end_list, 1)
-            #print("start,end",start_freq,end_freq)
+    def Single_coord(self, bamfile,reg, start, end):
+        """ returns the most frequent start and end coordinate for a circle in a dictionary with the key
+        being all the reads. If not having a coordinate more frequent than others, a dictionary with all reads
+        and the interval for potential circle """
+        Circle_dict = self.reduce_end_coords(bamfile,reg, start, end)
+        start = [i[0] for i in Circle_dict.values()]
+        # taking all possible end coordinates and merge into one list
+        end = sum([i[1:] for i in Circle_dict.values()], [])
+        # extract the most common
+        if start or end != []:
+            occ1, start_freq = self.most_frequent(start, 0)
+            # print("occurence,",occ1,"start",start_freq)
+            occ2, end_freq = self.most_frequent(end, 1)
+            # print("occurence,", occ2, "start", end_freq)
             if occ1 and occ2 == 1:
                 reads = []
                 chr = [reg]
+                # print("START COORDS", start)
+                # print("END COORD",end)
                 if start_freq < end_freq:
                     new_val = chr + [start_freq, end_freq]
                 else:
-                    #print("LLLOLLLLLLLLLLLLLL")
+                    # print("lol")
+                    # print(end_freq,start_freq)
                     new_val = chr + [end_freq, start_freq]
-
-                for k, v in modify_dict.items():
-                    if any(i == start_freq or i == end_freq for i in v['start']):
+                # print("Start and end",new_val)
+                for k, v in Circle_dict.items():
+                    if any(i == start_freq or i == end_freq for i in v):
                         reads.append(k)
-                    elif any(i == start_freq or i == end_freq for i in v['end']):
-                        reads.append(k)
-
                 final_dict = {tuple(sorted(reads)): new_val}
 
+                # Multiple reads
                 if len(list(final_dict.keys())[0]) != 1:
                     type = 1
-                    return all_soft,type, final_dict
+                    return type, final_dict
 
+                # Single read
                 else:
                     type = 2
-                    return all_soft,type, final_dict
+                    return type, final_dict
 
+            # not a more supported read
             else:
                 type = 2
+                # mangler stadig at lave det der overlaps
                 chr = [reg]
                 new_val = chr + [start_freq, end_freq]
-                final_dict = {tuple(sorted(modify_dict.keys())): new_val}
-                return all_soft,type, final_dict
-
+                final_dict = {tuple(sorted(Circle_dict.keys())): new_val}
+                # man kunne eventuelt her bare returnere Single coord
+                return type, final_dict
         else:
             type = 0
             # these dicts are empty, and serves to continue as some regions might not create a circle
-            return all_soft,type, modify_dict
+            return type, Circle_dict
 
-    def Simple_circ_df(self,Circ_dict, circ_type,soft_no):
-        """ returns a dataframe with circular information for the simple circles"""
+    def Is_Simple(self, bamfile,reg, start, end):
+        """ Check for potential complex circles by reads aligning across the genome. Afterwards it returns the simple circles
+         with 1 set of coordinates (type I) several set of coordinates (type II) and the complex circles (type III)"""
+        Type, Sing_dict = self.Single_coord(bamfile,reg, start, end)
+
+        Complex_dict = {}
+        Total_coord = []
+        Total_chr = []
+        Total_overlap = []
+
+        if len(Sing_dict) == 1:
+            reads_IDs = list(Sing_dict.keys())[0]
+            Read_list = self.Reads(bamfile, reg, start, end, reads_IDs)
+        else:
+            reads_IDs = list(Sing_dict.keys())
+            Read_list = self.Reads(bamfile, reg, start, end, reads_IDs)
+
+        for read in Read_list:
+            coord1 = list(Sing_dict.values())[0][-2]
+            coord2 = list(Sing_dict.values())[0][-1]
+            Total_chr.extend((reg, reg))
+            Total_coord.extend((coord1, coord2))
+            # print("TOAL CHR",Total_chr,Total_coord)
+            Tag = read.get_tag("SA").split(';')[:-1]
+            Coord_list = []
+            chroms = []
+            cigar_len = []
+
+            # examining for complexity
+            for Tagelem in Tag:
+                # splitting the individual aligment info up
+                Column_list = Tagelem.split(',')
+                # print("Column",Column_list)
+                chrom = Column_list[0]
+                length = Utils.CIGAR_len(Column_list[3])
+                cigar_len.append(length)
+                # 1 - based positions
+                pos_start = int(Column_list[1]) - 1
+                pos_end = int(Column_list[1]) + length - 1
+                # the overlaps between coordinates for grouping
+                overlap = sum(cigar_len) * 4
+                Total_overlap.append(overlap)
+                # if the supp align is in between the circular input region then we already know the breakpoint from Sing_dict
+                if chrom == reg and start - overlap <= pos_start <= end + overlap and start - overlap <= pos_end <= end + overlap:
+                    continue
+
+                elif int(Column_list[4]) >= self.MapQ:
+                    # creates a coordinate list
+                    Coord_list.append(pos_start)
+                    Coord_list.append(pos_end)
+
+                    # append chr twice to ensure same length as coord_list
+                    chroms.append(chrom)
+                    chroms.append(chrom)
+
+                    Total_chr.extend((chrom, chrom))
+
+                    Total_coord.extend((pos_start, pos_end))
+
+                if Coord_list != []:
+                    continue
+
+        # the simple circles
+        if Complex_dict == {}:
+            if Type == 0 or 1 or 2:
+                return Sing_dict, Type, None, None
+        else:
+            Type = 3
+            return None, Type, None, None
+
+    def Simple_circ_df(self,beddict, Circ_no, circ_type):
+        """ returns a dataframe with circular information for the simple circles, type 1 and 2 """
         df_col = ["Chr", "Start", "End"]
-        simple_df = pd.DataFrame.from_dict(Circ_dict, orient='index', columns=df_col)
+        simple_df = pd.DataFrame.from_dict(beddict, orient='index', columns=df_col)
         simple_df = simple_df.sort_values(by=df_col)
         simple_df['Length'] = simple_df.apply(lambda x: x['End'] - x['Start'], axis=1)
         # add_col = ['Read_No','Read_IDs','Circle_type','Circle_ID']
-        add_col = ['Read_No', 'Circle_type',"Soft_clip"]
+        add_col = ['Read_No', 'Circle_type', 'Circle_ID']
         # convert list of ID's to 1 long string as to insert it as a single column in the df
 
-        add_val = [len(list(Circ_dict.keys())[0]), circ_type,soft_no]
+        # Read_ID_str = str(list(list(beddict.keys())[0])).replace(" ","")
+        # add_val = [len(list(beddict.keys())[0]),Read_ID_str,circ_type,"%s_simple_circ_%d" % (SampleID,Circ_no)]
+
+        add_val = [len(list(beddict.keys())[0]), circ_type, "simple_circ_%d" % Circ_no]
 
         for i in range(len(add_col)):
             simple_df.insert(loc=len(simple_df.columns), column=add_col[i], value=add_val[i])
         return simple_df
 
-
-    def Region(self):
+    def Circle_output(self):
+        Simple_count = 1
         Simple_circ = pd.DataFrame()
-        with open(self.region) as f:
+
+        Read_File = Utils.SamBamParser(self.bamfile)
+
+        with open(self.regions) as f:
             for line in f:
                 region = line.strip().split()
-                chr = region[0]
+                coord = region[0]
                 start = region[1]
                 end = region[2]
-                #print("-------------------------------")
-                #print("REGION",str(chr),int(start), int(end))
-                soft_no,circ_type,circle_dict = self.Single_coord(str(chr),int(start), int(end))
-                #print("modify",circle_dict)
+                # print("THE CHROMOSOMAL COORDINATES", coord, start, end)
+                circle_dict, circ_type, circ_coord, circ_chr = self.Is_Simple(Read_File,str(coord), int(start), int(end))
+                print("DICT", circle_dict)
                 if circ_type == 1:
-                    circ_bed = self.Simple_circ_df(circle_dict, "high_conf",soft_no)
+                    circ_bed = self.Simple_circ_df(circle_dict, Simple_count, "high_conf")
                     rows = pd.concat([Simple_circ, circ_bed])
                     Simple_circ = rows
+                    Simple_count += 1
 
                 elif circ_type == 2:
                     if len(list(circle_dict.keys())[0]) > 1:
-                        circ_bed = self.Simple_circ_df(circle_dict, "conf",soft_no)
+                        circ_bed = self.Simple_circ_df(circle_dict, Simple_count, "conf")
                         rows = pd.concat([Simple_circ, circ_bed])
                         Simple_circ = rows
-
+                        Simple_count += 1
                     else:
-                        circ_bed = self.Simple_circ_df(circle_dict, "low_conf",soft_no)
+                        circ_bed = self.Simple_circ_df(circle_dict, Simple_count, "low_conf")
                         rows = pd.concat([Simple_circ, circ_bed])
                         Simple_circ = rows
+                        Simple_count += 1
+                elif circ_type == 3:
+                    continue
                 else:
                     continue
-        Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
-        Simple_bed.saveas(self.output)
 
+            Simple_bed = bt.BedTool.from_dataframe(Simple_circ)
+            Simple_bed.saveas("{0}.bed".format(str(self.output)))
 
 if __name__ == '__main__':
     print("main")

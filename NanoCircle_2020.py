@@ -693,8 +693,8 @@ def FULL(file_name,bamfile,bamname,savedir,mapQ):
         Bed_reads.saveas("{0}Complex_reads_1000.bed".format(str(savedir)))
 
 if __name__ == '__main__':
-     bamfile = ps.AlignmentFile("/isdata/common/wql443/NanoCircle/BC01.aln_hg19.bam","rb")
-     FULL("/isdata/common/wql443/NanoCircle/BC01_1000_cov.bed",bamfile,"BC01.aln_hg19.bam","/isdata/common/wql443/NanoCircle/",60)
+     bamfile = ps.AlignmentFile("/isdata/common/wql443/NanoCircle/BC01.bam","rb")
+     FULL("/isdata/common/wql443/NanoCircle/BC01_1000_cov.bed",bamfile,"BC01bam","/isdata/common/wql443/NanoCircle/",60)
 
 """
 #aln_hg19_Qiagen, Qiagen_1000_cov.bed
