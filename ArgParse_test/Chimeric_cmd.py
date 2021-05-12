@@ -185,6 +185,7 @@ class Chimeric_circ:
         Group_size = [len(i) for i in Grouped_coord]
         Grouped_start = self.Grouping_chr(Sort_chr, Group_size)
 
+
         final_reg = []
         for i in range(len(Group_size)):
             #if there is only one coordinate
@@ -208,6 +209,7 @@ class Chimeric_circ:
                     if pos == 1:
                         final_reg.extend([Grouped_start[i][0], max(Grouped_coord[i])])
 
+
         return final_reg
 
     def Circle_dict(self,dict,Start_chr,Start_coord,End_chr,End_coord):
@@ -217,8 +219,19 @@ class Chimeric_circ:
 
         d = {}
         d[tuple(dict.keys())] = []
+
+        try:
+            assert len(start) == len(end)
+        except AssertionError as e:
+            print("Clustering in Circle_dict didn't make equal clusters. Increasing clustering distance to 100000bp.")
+            start = self.Common_coord(Start_chr, Start_coord, 100000, 0)
+            end = self.Common_coord(End_chr, End_coord, 100000, 1)
+             
+
         for i in range(len(start[::2])):
+
             d[tuple(dict.keys())].extend([start[0::2][i], start[1::2][i], end[1::2][i],end[1::2][i]-start[1::2][i]])
+
 
         return d
 
