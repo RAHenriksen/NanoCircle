@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import pybedtools as bt
 import operator
+import warnings
 from subprocess import call,Popen, PIPE, STDOUT
 
 print("Imports the chimeric script")
@@ -46,8 +47,15 @@ class Merge_config:
         df['End'] = df['End'].astype(float).astype('Int64')
 
         df = df.sort_values(by=["Chr","Start","End"],ascending=[True,True,True])
-        bedformat = bt.BedTool.from_dataframe(df)
+        compatible_bed = []
+        for index,interval in df.iterrows():
+        # Check compatibility of bed format
+            if int(interval[1]) < int(interval[2]):
+                compatible_bed.append(interval)
+            else:
+                warnings.warn("Non-compatible interval found %s. Removing it." % interval)
 
+        bedformat = bt.BedTool(compatible_bed)
         Collapsed = bedformat.merge(d=self.dist,c=[4], o="collapse")
 
         #print(df.sort_values(['Chr','Start','End'], ascending=[True,True,True]))

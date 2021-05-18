@@ -224,9 +224,8 @@ class Chimeric_circ:
             assert len(start) == len(end)
         except AssertionError as e:
             print("Clustering in Circle_dict didn't make equal clusters. Increasing clustering distance to 100000bp.")
-            start = self.Common_coord(Start_chr, Start_coord, 100000, 0)
-            end = self.Common_coord(End_chr, End_coord, 100000, 1)
-             
+            start = self.Common_coord(Start_chr, Start_coord, 1000000, 0)
+            end = self.Common_coord(End_chr, End_coord, 1000000, 1)
 
         for i in range(len(start[::2])):
 
