@@ -1,5 +1,6 @@
 #!/binf-isilon/common/mfj598/anaconda/bin/python
 import argparse
+import File_parser
 import sys
 import time
 
@@ -11,18 +12,24 @@ class NanoCircle:
         self.parser = argparse.ArgumentParser(
                 usage='''NanoCircle <subprogram> [options]
                 Rasmus Amund Henriksen, wql443@alumni.ku.dk, 2020
-                Version 1.0.0
+                Version 1.0.5
                 
                 The NanoCircle suite
                 
                 Commands:
                 
+                Classify     Characterize the different reads into simple or chimeric circle origin 
                 Simple       Identifies simple circular DNA, comprised of a single chromosomal fragment
                 Chimeric     Identifies chimeric circular DNA, comprised of multiple chromosomal fragments
                 Merge        Merge all potential configuration of chimeric eccDNA identified with Chimeric command ''')
 
         # create subcommands each with their own arguments
         subparsers = self.parser.add_subparsers()
+        self.Classify = subparsers.add_parser(
+            name="Classify",
+            description='Characterize the different reads into simple or chimeric circle origin',
+            prog="NanoCircle Classify",
+            usage='''NanoCircle Classify [options]''')
 
         self.Simple = subparsers.add_parser(
             name="Simple",
@@ -52,6 +59,15 @@ class NanoCircle:
                 self.parser.print_help()
 
             # The positional arguments
+            elif sys.argv[1] == "Classify":
+                print("Classify works")
+                self.subprogram = self.args_Classify()
+                self.args = self.subprogram.parse_args(sys.argv[2:])
+
+                import Classify_cmd as Classes
+                Class_object = Classes.Read_Filter(self.args.ibam,self.args.dir,self.args.mapq)
+                read_files = Class_object.Filter()
+
             elif sys.argv[1] == "Simple":
                 print("Simple works")
                 # Defines the subprogram with the arguments given by args_Simple()
@@ -64,7 +80,7 @@ class NanoCircle:
 
                 # passes the loaded data into the Simple_cmd script
                 Class_object = Sim.Simple_circ(self.args.input,self.args.ibam,self.args.output,self.args.mapq)
-                Class_object.Circle_output()
+                test = Class_object.Region()
 
             elif sys.argv[1] == "Chimeric":
                 print("Chimeric works")
@@ -91,6 +107,28 @@ class NanoCircle:
                 sys.stderr.write(
                     "NanoCircle error: the positional arguments are required\n")
                 sys.exit(0)
+
+    def args_Classify(self):
+        """
+        :return: argument parser for the Simple commands
+        """
+        parser = self.Classify
+
+        required = parser.add_argument_group('required arguments')
+        optional = parser.add_argument_group('optional arguments')
+
+        # required arguments
+        required.add_argument("-b", "--ibam",required=True, metavar="", help='Bam file with circle reads')
+        required.add_argument("-d", "--dir", required=True, metavar="", help='Directory for classified reads')
+
+        # optional arguments
+        optional.add_argument("-q", "--mapq", metavar="", default=60, type=int, help='Mapping Quality, default 60')
+
+        # if no arguments are parsed
+        if len(sys.argv[2:]) == 0:
+            parser.print_help()
+
+        return parser
 
     def args_Simple(self):
         """

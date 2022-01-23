@@ -34,7 +34,7 @@ minimap2 -t 8 -ax map-ont --secondary=no hg19.25chr.mmi read_file.fastq | samtoo
 
 ### bedtools genomecov + merge
 ~~~bash
-bedtools genomecov -bg -ibam barcode.aln_hg19.bam | bedtools merge -d 1000 -i stdin | sort -V -k1,1 -k2,2n > barcode_1000_cov.bed
+bedtools genomecov -bg -ibam barcode_hg19.bam | bedtools merge -d 1000 -i stdin | sort -V -k1,1 -k2,2n > barcode_1000_cov.bed
 ~~~ 
 
 # Running NanoCircle to identify the eccDNA coordinates
