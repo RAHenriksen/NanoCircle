@@ -81,3 +81,4 @@ cat BC07.fastq | awk '{print $1}' | grep '@' | sort | uniq | wc –l
 samtools view -F 0x4 BC07/BC07.aln_hg19.bam | cut -f 1 | sort | uniq | wc -l
 
 ~~~
+# Will not be updated further since - October 2020
