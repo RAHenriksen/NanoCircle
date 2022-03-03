@@ -1,4 +1,4 @@
-### NanoCircle, Rasmus Amund Henriksen, wql443@alumni.ku.dk
+### NanoCircle
 
 The github reporsitory for the under development
 tool, NanoCircle 2020. Useful for identifying the coordinates
